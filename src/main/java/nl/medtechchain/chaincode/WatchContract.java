@@ -17,7 +17,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@Contract(name = "basic", info = @Info(title = "Watch Contract", version = "0.0.1"))
+@Contract(name = "medtechchain", info = @Info(title = "Watch Contract", version = "0.0.1"))
 @Default
 public final class WatchContract implements ContractInterface {
 
