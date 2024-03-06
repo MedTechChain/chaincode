@@ -3,7 +3,7 @@ package nl.medtechchain.chaincode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.ThrowableAssert.catchThrowable;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -96,7 +96,7 @@ public final class WatchTransferTest {
         assertThat(thrown).isInstanceOf(ChaincodeException.class).hasNoCause().hasMessage("Undefined contract method called");
         assertThat(((ChaincodeException) thrown).getPayload()).isEqualTo(null);
 
-        verifyZeroInteractions(ctx);
+        verifyNoInteractions(ctx);
     }
 
     @Nested

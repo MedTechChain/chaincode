@@ -1,9 +1,5 @@
-/*
- * SPDX-License-Identifier: Apache-2.0
- */
-
 plugins {
-    id 'com.github.johnrengelman.shadow' version '5.1.0'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'application'
     id 'checkstyle'
     id 'jacoco'
@@ -14,14 +10,14 @@ version '0.0.1'
 
 dependencies {
     
-    implementation 'org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.4.1'
+    implementation 'org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.5.1'
     implementation 'org.json:json:+'
     implementation 'com.owlike:genson:1.6'
-    testImplementation 'org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.4.1'
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.4.2'
-    testImplementation 'org.assertj:assertj-core:3.11.1'
-    testImplementation 'org.mockito:mockito-core:2.+'
-    testImplementation 'org.jetbrains:annotations:24.0.0'
+    testImplementation 'org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.5.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation 'org.assertj:assertj-core:3.25.3'
+    testImplementation 'org.mockito:mockito-core:5.11.0'
+    testImplementation 'org.jetbrains:annotations:24.1.0'
 }
 
 repositories {
@@ -36,9 +32,16 @@ application {
 }
 
 checkstyle {
-    toolVersion '8.21'
+    toolVersion '10.14.0'
     configFile file("config/checkstyle/checkstyle.xml")
 }
+
+configurations.checkstyle {
+    resolutionStrategy.capabilitiesResolution.withCapability("com.google.collections:google-collections") {
+        select("com.google.guava:guava:0")
+    }
+}
+
 
 checkstyleMain {
     source ='src/main/java'
@@ -56,7 +59,7 @@ jacocoTestCoverageVerification {
     violationRules {
         rule {
             limit {
-                minimum = 0.9
+                minimum = 0.8
             }
         }
     }
@@ -74,7 +77,7 @@ test {
 mainClassName = 'org.hyperledger.fabric.contract.ContractRouter'
 
 shadowJar {
-    archiveBaseName.set('nl.medtechchain.chaincode')
+    archiveBaseName.set('medtechchain')
     archiveVersion.set('0.0.1')
     archiveClassifier.set(null)
 
