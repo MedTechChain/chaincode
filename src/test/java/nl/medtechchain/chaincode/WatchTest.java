@@ -14,14 +14,14 @@ public final class WatchTest {
 
         @Test
         public void isReflexive() {
-            Watch watch = new Watch(UUID.randomUUID(), "v0.0.1");
+            Watch watch = new Watch(UUID.randomUUID().toString(), "v0.0.1");
 
             assertThat(watch).isEqualTo(watch);
         }
 
         @Test
         public void isSymmetric() {
-            UUID uuid = UUID.randomUUID();
+            String uuid = UUID.randomUUID().toString();
             String version = "v0.0.1";
             Watch watchA = new Watch(uuid, version);
             Watch watchB = new Watch(uuid, version);
@@ -32,7 +32,7 @@ public final class WatchTest {
 
         @Test
         public void isTransitive() {
-            UUID uuid = UUID.randomUUID();
+            String uuid = UUID.randomUUID().toString();
             String version = "v0.0.1";
 
             Watch watchA = new Watch(uuid, version);
@@ -46,15 +46,15 @@ public final class WatchTest {
 
         @Test
         public void handlesInequality() {
-            Watch watchA = new Watch(UUID.randomUUID(), "v0.0.1");
-            Watch watchB = new Watch(UUID.randomUUID(), "v0.0.1");
+            Watch watchA = new Watch(UUID.randomUUID().toString(), "v0.0.1");
+            Watch watchB = new Watch(UUID.randomUUID().toString(), "v0.0.1");
 
             assertThat(watchA).isNotEqualTo(watchB);
         }
 
         @Test
         public void handlesOtherObjects() {
-            Watch watchA = new Watch(UUID.randomUUID(), "v0.0.1");
+            Watch watchA = new Watch(UUID.randomUUID().toString(), "v0.0.1");
             String watchB = "not a watch";
 
             assertThat(watchA).isNotEqualTo(watchB);
@@ -62,7 +62,7 @@ public final class WatchTest {
 
         @Test
         public void handlesNull() {
-            Watch watch = new Watch(UUID.randomUUID(), "v0.0.1");
+            Watch watch = new Watch(UUID.randomUUID().toString(), "v0.0.1");
 
             assertThat(watch).isNotEqualTo(null);
         }

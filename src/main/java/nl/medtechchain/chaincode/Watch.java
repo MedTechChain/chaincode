@@ -1,7 +1,6 @@
 package nl.medtechchain.chaincode;
 
 import java.util.Objects;
-import java.util.UUID;
 
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
@@ -9,9 +8,23 @@ import org.hyperledger.fabric.contract.annotation.Property;
 import com.owlike.genson.annotation.JsonProperty;
 
 @DataType()
-public record Watch(@Property() UUID watchID, @Property() String firmwareVersion) {
+public final class Watch {
 
-    public Watch(@JsonProperty("watchID") final UUID watchID, @JsonProperty("firmwareVersion") final String firmwareVersion) {
+    @Property()
+    private final String watchID;
+
+    public String getWatchID() {
+        return watchID;
+    }
+
+    public String getFirmwareVersion() {
+        return firmwareVersion;
+    }
+
+    @Property()
+    private final String firmwareVersion;
+
+    public Watch(@JsonProperty("watchID") final String watchID, @JsonProperty("firmwareVersion") final String firmwareVersion) {
         this.watchID = watchID;
         this.firmwareVersion = firmwareVersion;
     }
@@ -29,8 +42,8 @@ public record Watch(@Property() UUID watchID, @Property() String firmwareVersion
         Watch other = (Watch) obj;
 
         return Objects.deepEquals(
-                new String[]{watchID().toString(), firmwareVersion()},
-                new String[]{other.watchID().toString(), firmwareVersion()});
+                new String[]{watchID.toString(), firmwareVersion},
+                new String[]{other.watchID.toString(), firmwareVersion});
     }
 
     @Override

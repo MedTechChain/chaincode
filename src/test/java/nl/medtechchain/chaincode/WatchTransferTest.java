@@ -16,7 +16,6 @@ import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -74,7 +73,6 @@ public final class WatchTransferTest {
         }
 
         @Override
-        @NotNull
         public Iterator<KeyValue> iterator() {
             return assetList.iterator();
         }
@@ -102,7 +100,7 @@ public final class WatchTransferTest {
     @Nested
     class InvokeReadWatchTransaction {
 
-        private final UUID uuid = UUID.randomUUID();
+        private final String uuid = UUID.randomUUID().toString();
 
         @Test
         public void whenAssetExists() {
@@ -110,7 +108,7 @@ public final class WatchTransferTest {
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.getStringState(uuid.toString())).thenReturn(String.format("{ \"watchID\": \"%s\", \"firmwareVersion\": \"%s\" }", uuid, "V0.0.1"));
+            when(stub.getStringState(uuid)).thenReturn(String.format("{ \"watchID\": \"%s\", \"firmwareVersion\": \"%s\" }", uuid, "V0.0.1"));
 
             Watch watch = contract.ReadWatch(ctx, uuid);
 
@@ -123,7 +121,7 @@ public final class WatchTransferTest {
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.getStringState(uuid.toString())).thenReturn("");
+            when(stub.getStringState(uuid)).thenReturn("");
 
             Throwable thrown = catchThrowable(() -> contract.ReadWatch(ctx, uuid));
 
@@ -135,7 +133,7 @@ public final class WatchTransferTest {
     @Nested
     class InvokeCreateWatchTransaction {
 
-        private final UUID uuid = UUID.randomUUID();
+        private final String uuid = UUID.randomUUID().toString();
 
         @Test
         public void whenAssetExists() {
@@ -143,7 +141,7 @@ public final class WatchTransferTest {
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.getStringState(uuid.toString())).thenReturn(String.format("{ \"watchID\": \"%s\", \"firmwareVersion\": \"%s\" }", uuid, "V0.0.1"));
+            when(stub.getStringState(uuid)).thenReturn(String.format("{ \"watchID\": \"%s\", \"firmwareVersion\": \"%s\" }", uuid, "V0.0.1"));
 
             Throwable thrown = catchThrowable(() -> contract.CreateWatch(ctx, uuid, "v0.0.1"));
 
@@ -157,7 +155,7 @@ public final class WatchTransferTest {
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.getStringState(uuid.toString())).thenReturn("");
+            when(stub.getStringState(uuid)).thenReturn("");
 
             Watch watch = contract.CreateWatch(ctx, uuid, "v0.0.1");
 
@@ -170,7 +168,7 @@ public final class WatchTransferTest {
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.getStringState(uuid.toString())).thenReturn("");
+            when(stub.getStringState(uuid)).thenReturn("");
 
             Throwable thrown = catchThrowable(() -> contract.CreateWatch(ctx, uuid, "not a valid version"));
 
@@ -196,7 +194,7 @@ public final class WatchTransferTest {
     @Nested
     class UpdateWatchTransaction {
 
-        private final UUID uuid = UUID.randomUUID();
+        private final String uuid = UUID.randomUUID().toString();
 
         @Test
         public void whenAssetExists() {
@@ -204,7 +202,7 @@ public final class WatchTransferTest {
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.getStringState(uuid.toString())).thenReturn(String.format("{ \"watchID\": \"%s\", \"firmwareVersion\": \"%s\" }", uuid, "V0.0.1"));
+            when(stub.getStringState(uuid)).thenReturn(String.format("{ \"watchID\": \"%s\", \"firmwareVersion\": \"%s\" }", uuid, "V0.0.1"));
 
             Watch watch = contract.UpdateWatch(ctx, uuid, "v0.0.2");
 
@@ -217,7 +215,7 @@ public final class WatchTransferTest {
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.getStringState(uuid.toString())).thenReturn(String.format("{ \"watchID\": \"%s\", \"firmwareVersion\": \"%s\" }", uuid, "V0.0.2"));
+            when(stub.getStringState(uuid)).thenReturn(String.format("{ \"watchID\": \"%s\", \"firmwareVersion\": \"%s\" }", uuid, "V0.0.2"));
 
             Throwable thrown = catchThrowable(() -> contract.UpdateWatch(ctx, uuid, "not a valid version"));
 
@@ -229,7 +227,7 @@ public final class WatchTransferTest {
     @Nested
     class DeleteWatchTransaction {
 
-        private final UUID uuid = UUID.randomUUID();
+        private final String uuid = UUID.randomUUID().toString();
 
         @Test
         public void whenAssetDoesNotExist() {
@@ -237,7 +235,7 @@ public final class WatchTransferTest {
             Context ctx = mock(Context.class);
             ChaincodeStub stub = mock(ChaincodeStub.class);
             when(ctx.getStub()).thenReturn(stub);
-            when(stub.getStringState(uuid.toString())).thenReturn("");
+            when(stub.getStringState(uuid)).thenReturn("");
 
             Throwable thrown = catchThrowable(() -> contract.DeleteWatch(ctx, uuid));
 

@@ -10,14 +10,12 @@ version '0.0.1'
 
 dependencies {
     
-    implementation 'org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.5.1'
-    implementation 'org.json:json:+'
+    compileOnly 'org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.5.1'
     implementation 'com.owlike:genson:1.6'
     testImplementation 'org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.5.1'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testImplementation 'org.assertj:assertj-core:3.25.3'
     testImplementation 'org.mockito:mockito-core:5.11.0'
-    testImplementation 'org.jetbrains:annotations:24.1.0'
 }
 
 repositories {
@@ -25,6 +23,10 @@ repositories {
     maven {
         url 'https://jitpack.io'
     }
+}
+
+tasks.compileJava {
+    options.release.set(11)
 }
 
 application {
@@ -73,8 +75,6 @@ test {
         events "passed", "skipped", "failed"
     }
 }
-
-mainClassName = 'org.hyperledger.fabric.contract.ContractRouter'
 
 shadowJar {
     archiveBaseName.set('medtechchain')

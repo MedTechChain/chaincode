@@ -13,7 +13,6 @@ import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 
 import com.owlike.genson.Genson;
 
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,7 +37,7 @@ public final class WatchContract implements ContractInterface {
      * @return the created watch
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Watch CreateWatch(final Context ctx, final UUID watchID, final String firmwareVersion) {
+    public Watch CreateWatch(final Context ctx, final String watchID, final String firmwareVersion) {
         ChaincodeStub stub = ctx.getStub();
 
         if (WatchExists(ctx, watchID)) {
@@ -50,7 +49,7 @@ public final class WatchContract implements ContractInterface {
 
         Watch watch = new Watch(watchID, firmwareVersion);
         String sortedJson = genson.serialize(watch);
-        stub.putStringState(watchID.toString(), sortedJson);
+        stub.putStringState(watchID, sortedJson);
 
         return watch;
     }
@@ -63,9 +62,9 @@ public final class WatchContract implements ContractInterface {
      * @return the watch found on the ledger if there was one
      */
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public Watch ReadWatch(final Context ctx, final UUID watchID) {
+    public Watch ReadWatch(final Context ctx, final String watchID) {
         ChaincodeStub stub = ctx.getStub();
-        String watchJSON = stub.getStringState(watchID.toString());
+        String watchJSON = stub.getStringState(watchID);
 
         if (watchJSON == null || watchJSON.isEmpty()) {
             String errorMessage = String.format("Watch %s does not exist", watchID);
@@ -84,7 +83,7 @@ public final class WatchContract implements ContractInterface {
      * @return the created watch
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Watch UpdateWatch(final Context ctx, final UUID watchID, final String firmwareVersion) {
+    public Watch UpdateWatch(final Context ctx, final String watchID, final String firmwareVersion) {
         ChaincodeStub stub = ctx.getStub();
 
         if (!WatchExists(ctx, watchID)) {
@@ -96,7 +95,7 @@ public final class WatchContract implements ContractInterface {
 
         Watch newWatch = new Watch(watchID, firmwareVersion);
         String sortedJson = genson.serialize(newWatch);
-        stub.putStringState(watchID.toString(), sortedJson);
+        stub.putStringState(watchID, sortedJson);
         return newWatch;
     }
 
@@ -107,7 +106,7 @@ public final class WatchContract implements ContractInterface {
      * @param watchID the ID of the new watch
      */
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public void DeleteWatch(final Context ctx, final UUID watchID) {
+    public void DeleteWatch(final Context ctx, final String watchID) {
         ChaincodeStub stub = ctx.getStub();
 
         if (!WatchExists(ctx, watchID)) {
@@ -115,7 +114,7 @@ public final class WatchContract implements ContractInterface {
             throw new ChaincodeException(errorMessage, WatchErrors.ASSET_NOT_FOUND.toString());
         }
 
-        stub.delState(watchID.toString());
+        stub.delState(watchID);
     }
 
     /**
@@ -126,9 +125,9 @@ public final class WatchContract implements ContractInterface {
      * @return boolean indicating the existence of the boolean
      */
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public boolean WatchExists(final Context ctx, final UUID watchID) {
+    public boolean WatchExists(final Context ctx, final String watchID) {
         ChaincodeStub stub = ctx.getStub();
-        String watchJSON = stub.getStringState(watchID.toString());
+        String watchJSON = stub.getStringState(watchID);
 
         return (watchJSON != null && !watchJSON.isEmpty());
     }
@@ -149,7 +148,7 @@ public final class WatchContract implements ContractInterface {
         int count = 0;
         for (KeyValue result : results) {
             Watch watch = genson.deserialize(result.getStringValue(), Watch.class);
-            if (watch.firmwareVersion().compareTo(lowBoundFirmwareVersion) >= 0)
+            if (watch.getFirmwareVersion().compareTo(lowBoundFirmwareVersion) >= 0)
                 count++;
         }
 
