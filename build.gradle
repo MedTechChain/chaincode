@@ -6,7 +6,6 @@ plugins {
 }
 
 group 'nl.medtechchain'
-version '0.0.1'
 
 dependencies {
     
@@ -77,8 +76,7 @@ test {
 }
 
 shadowJar {
-    archiveBaseName.set('medtechchain')
-    archiveVersion.set('0.0.1')
+    archiveFileName.set('medtechchain.jar')
     archiveClassifier.set(null)
 
     manifest {
