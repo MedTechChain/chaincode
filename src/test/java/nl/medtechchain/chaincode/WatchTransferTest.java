@@ -21,7 +21,15 @@ import org.junit.jupiter.api.Test;
 
 public final class WatchTransferTest {
 
-    public record MockKeyValue(String key, String value) implements KeyValue {
+    public static class MockKeyValue implements KeyValue {
+        private final String key;
+        private final String value;
+
+        public MockKeyValue(String key, String value) {
+            this.key = key;
+            this.value = value;
+        }
+
         @Override
         public String getKey() {
             return key;

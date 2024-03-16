@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  medivale-chaincode-dev:
+    container_name: medivale-chaincode-dev
+    image: medtechchain/chaincode-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        HOSPITAL_DOMAIN: medivale.nl
+    environment:
+      LOGLEVEL: INFO
+      CHANNEL_NAME: medtechchain
+      CORE_PEER_ADDRESS: peer0.medivale.nl:7051
+      CORE_PEER_LOCALMSPID: MediValePeerMSP
+      CORE_CHAINCODE_ID_NAME: medtechchain
+      CHAINCODE_SERVER_ADDRESS: 0.0.0.0:9999
+      CORE_PEER_TLS_ENABLED: "true"
+      CORE_PEER_TLS_ROOTCERT_FILE: /crypto/medivale.nl/tls/ca.crt
+      CORE_TLS_CLIENT_KEY_PATH: /crypto/medivale.nl/msp/keystore
+      CORE_TLS_CLIENT_KEY_FILE: /crypto/medivale.nl/msp/keystore/priv_sk
+      CORE_TLS_CLIENT_CERT_PATH: /crypto/medivale.nl/msp/signcerts
+      CORE_TLS_CLIENT_CERT_FILE: /crypto/medivale.nl/msp/signcerts/User1@medivale.nl-cert.pem
+    ports:
+      - "9999:9999"
+      - "8001:8000"
+    networks:
+      - medivale
+
+networks:
+  medivale:
+    external: true
+    name: medivale
