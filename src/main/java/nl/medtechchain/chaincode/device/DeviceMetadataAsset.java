@@ -1,7 +1,7 @@
 package nl.medtechchain.chaincode.device;
 
 import com.google.protobuf.CodedOutputStream;
-import nl.medtechchain.chaincode.encryption.HomomorphicEncryptionType;
+import nl.medtechchain.chaincode.encryption.scheme.HEType;
 import nl.medtechchain.protos.devicemetadata.BedsideMonitorEncrypted;
 import nl.medtechchain.protos.devicemetadata.WearableDeviceEncrypted;
 import org.hyperledger.fabric.contract.annotation.DataType;
@@ -14,7 +14,7 @@ import java.util.Objects;
 @DataType(namespace = "device")
 public class DeviceMetadataAsset {
     @Property()
-    private final HomomorphicEncryptionType encryptionType;
+    private final HEType encryptionType;
 
     @Property()
     private final DeviceType deviceType;
@@ -22,14 +22,14 @@ public class DeviceMetadataAsset {
     @Property()
     private final byte[] data;
 
-    public DeviceMetadataAsset(final HomomorphicEncryptionType encryptionType, final WearableDeviceEncrypted data) throws IOException {
+    public DeviceMetadataAsset(final HEType encryptionType, final WearableDeviceEncrypted data) throws IOException {
         this.data = new byte[0];
         data.writeTo(CodedOutputStream.newInstance(this.data));
         this.encryptionType = encryptionType;
         this.deviceType = DeviceType.WEARABLE;
     }
 
-    public DeviceMetadataAsset(final HomomorphicEncryptionType encryptionType, final BedsideMonitorEncrypted data) throws IOException {
+    public DeviceMetadataAsset(final HEType encryptionType, final BedsideMonitorEncrypted data) throws IOException {
         this.data = new byte[0];
         data.writeTo(CodedOutputStream.newInstance(this.data));
         this.encryptionType = encryptionType;

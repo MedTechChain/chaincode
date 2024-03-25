@@ -1,9 +1,8 @@
 package nl.medtechchain.chaincode.encryption;
 
 import com.owlike.genson.Genson;
-import nl.medtechchain.chaincode.encryption.homomorphic.HomomorphicEncryptFactory;
-import nl.medtechchain.chaincode.encryption.homomorphic.impl.phe.paillier.PaillierBitLength;
-import nl.medtechchain.chaincode.encryption.homomorphic.impl.phe.paillier.PaillierFacotry;
+import nl.medtechchain.chaincode.encryption.provider.HEInterfaceProvider;
+import nl.medtechchain.chaincode.encryption.scheme.HEType;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.annotation.Contract;
 import org.hyperledger.fabric.contract.annotation.Info;
@@ -19,12 +18,9 @@ import java.util.Arrays;
         license = @License(
                 name = "Apache 2.0 License",
                 url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
-public class EncryptionManagementContract {
+public class ManagementContract {
 
     private static final String HOM_ENC_TYPE = "HOM_ENC_TYPE";
-
-    @SuppressWarnings({"rawtypes"})
-    private static HomomorphicEncryptFactory factory;
 
     private final Genson genson = new Genson();
 
@@ -33,19 +29,18 @@ public class EncryptionManagementContract {
         if (!checkAccess(ctx))
             return new Chaincode.Response(Chaincode.Response.Status.forCode(403), "FORBIDDEN", new byte[0]);
 
-        SetEncryptionType(ctx, HomomorphicEncryptionType.PAILLIER_2048);
-        setFactory(HomomorphicEncryptionType.PAILLIER_2048);
+        SetEncryptionType(ctx, HEType.PAILLIER_2048);
         return new Chaincode.Response(Chaincode.Response.Status.SUCCESS, "SUCCESS", new byte[0]);
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Chaincode.Response SetEncryptionType(final Context ctx, final HomomorphicEncryptionType type) {
+    public Chaincode.Response SetEncryptionType(final Context ctx, final HEType type) {
         if (!checkAccess(ctx))
             return new Chaincode.Response(Chaincode.Response.Status.forCode(403), "FORBIDDEN", new byte[0]);
 
         ChaincodeStub stub = ctx.getStub();
         stub.putStringState(HOM_ENC_TYPE, type.name());
-        setFactory(type);
+        HEInterfaceProvider.instance().setHEType(type);
         return new Chaincode.Response(Chaincode.Response.Status.SUCCESS, "SUCCESS", new byte[0]);
     }
 
@@ -55,7 +50,7 @@ public class EncryptionManagementContract {
             return new Chaincode.Response(Chaincode.Response.Status.forCode(403), "FORBIDDEN", new byte[0]);
 
         ChaincodeStub stub = ctx.getStub();
-        return new Chaincode.Response(Chaincode.Response.Status.SUCCESS, "ENCRYPTION_TYPE", genson.serialize(HomomorphicEncryptionType.valueOf(stub.getStringState(HOM_ENC_TYPE)).name()).getBytes());
+        return new Chaincode.Response(Chaincode.Response.Status.SUCCESS, "ENCRYPTION_TYPE", genson.serialize(getEncryptionTypes(ctx).name()).getBytes());
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
@@ -63,24 +58,13 @@ public class EncryptionManagementContract {
         if (!checkAccess(ctx))
             return new Chaincode.Response(Chaincode.Response.Status.forCode(403), "FORBIDDEN", new byte[0]);
 
-        return new Chaincode.Response(Chaincode.Response.Status.SUCCESS, "ENCRYPTION_TYPE_LIST", genson.serialize(Arrays.asList(HomomorphicEncryptionType.values())).getBytes());
+        return new Chaincode.Response(Chaincode.Response.Status.SUCCESS, "ENCRYPTION_TYPE_LIST", genson.serialize(Arrays.asList(HEType.values())).getBytes());
     }
 
-    @SuppressWarnings({"rawtypes"})
-    public static HomomorphicEncryptFactory getFactory() {
-        return factory;
+    HEType getEncryptionTypes(final Context ctx) {
+        return HEType.valueOf(ctx.getStub().getStringState(HOM_ENC_TYPE));
     }
 
-    private void setFactory(final HomomorphicEncryptionType type) {
-        switch (type) {
-            case PAILLIER_2048:
-                factory = new PaillierFacotry(PaillierBitLength.BL_2048);
-                break;
-            case PAILLIER_4096:
-                factory = new PaillierFacotry(PaillierBitLength.BL_4096);
-                break;
-        }
-    }
 
     // TODO: Perform Access control checks
     private boolean checkAccess(final Context ctx) {

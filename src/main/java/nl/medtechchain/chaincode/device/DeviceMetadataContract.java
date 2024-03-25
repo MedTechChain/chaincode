@@ -1,18 +1,10 @@
 package nl.medtechchain.chaincode.device;
 
 import com.owlike.genson.Genson;
-import nl.medtechchain.chaincode.Watch;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.*;
 import org.hyperledger.fabric.shim.Chaincode;
-import org.hyperledger.fabric.shim.ChaincodeException;
-import org.hyperledger.fabric.shim.ChaincodeStub;
-import org.hyperledger.fabric.shim.ledger.KeyValue;
-import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Contract(name = "device", info = @Info(
         title = "Device Metadata",
