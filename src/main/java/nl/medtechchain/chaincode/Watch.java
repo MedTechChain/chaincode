@@ -7,6 +7,8 @@ import org.hyperledger.fabric.contract.annotation.Property;
 
 import com.owlike.genson.annotation.JsonProperty;
 
+
+//TODO : Remove this
 @DataType()
 public final class Watch {
 

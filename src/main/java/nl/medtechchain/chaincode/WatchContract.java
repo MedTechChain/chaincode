@@ -16,6 +16,7 @@ import com.owlike.genson.Genson;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+//TODO : Remove this
 @Contract(name = "medtechchain", info = @Info(title = "Watch Contract", version = "0.0.1"))
 @Default
 public final class WatchContract implements ContractInterface {
