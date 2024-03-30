@@ -3,6 +3,7 @@ package nl.medtechchain.chaincode.contract;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.JsonFormat;
 import nl.medtechchain.chaincode.contract.util.ResponseUtil;
 import nl.medtechchain.protos.devicemetadata.DeviceType;
 import nl.medtechchain.protos.devicemetadata.EncryptedDeviceMetadata;
@@ -31,20 +32,30 @@ public final class DeviceMetadataContract implements ContractInterface {
     private static final String INDEX_NAME = "UDI_HOSPITAL_DTYPE_TIMESTAMP";
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Chaincode.Response CreateDeviceMetadataAsset(Context ctx, String udi, DeviceType deviceType, byte[] bytes) {
+    public Chaincode.Response CreateDeviceMetadataAsset(Context ctx, String udi, DeviceType deviceType, String jsonString) {
         Hospital hospital = getHospitalFromCtx(ctx);
         if (hospital == Hospital.UNRECOGNIZED) return ResponseUtil.error("Hospital not recognized");
 
+        EncryptedDeviceMetadata.Builder queryBuilder = EncryptedDeviceMetadata.newBuilder();
+        try {
+            JsonFormat.parser().merge(jsonString, queryBuilder);
+        } catch (InvalidProtocolBufferException e) {
+            return ResponseUtil.error("Could not deserialize");
+        }
+        EncryptedDeviceMetadata md = queryBuilder.build();
+
         CompositeKey key = compositeKey(ctx, udi, hospital, deviceType, Instant.now().getEpochSecond());
-        ctx.getStub().putState(key.toString(), bytes);
-        return ResponseUtils.newSuccessResponse();
+        ctx.getStub().putState(key.toString(), md.getRawBytes().toByteArray());
+        return ResponseUtil.success();
     }
 
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public Chaincode.Response Query(Context ctx, byte[] bytes) {
+    public Chaincode.Response Query(Context ctx, String jsonString) {
         try {
-            Query query = Query.parseFrom(bytes);
+            Query.Builder queryBuilder = Query.newBuilder();
+            JsonFormat.parser().merge(jsonString, queryBuilder);
+            Query query = queryBuilder.build();
 
             switch (query.getQueryType()) {
                 case COUNT:
@@ -241,7 +252,7 @@ public final class DeviceMetadataContract implements ContractInterface {
                 }
             }
 
-            if(count == 0)
+            if (count == 0)
                 return ResponseUtil.success(QueryResultType.COUNT_RESULT.name(), AverageResult.newBuilder().setResult(0).build().toByteArray());
 
             return ResponseUtil.success(QueryResultType.COUNT_RESULT.name(), AverageResult.newBuilder().setResult(result / count).build().toByteArray());
