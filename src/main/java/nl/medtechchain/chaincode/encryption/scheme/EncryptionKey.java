@@ -1,5 +1,5 @@
 package nl.medtechchain.chaincode.encryption.scheme;
 
-public interface EncKey {
+public interface EncryptionKey {
     String toString();
 }

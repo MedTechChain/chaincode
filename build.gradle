@@ -10,12 +10,15 @@ group 'nl.medtechchain'
 dependencies {
 
     implementation 'org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.5.1'
-    implementation "com.google.protobuf:protobuf-java:4.26.0"
-    implementation 'com.owlike:genson:1.6'
+    implementation "com.google.protobuf:protobuf-java:4.26.1"
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
     implementation ':medtechchain.protos:0.0.1'
+
     testImplementation 'org.hyperledger.fabric-chaincode-java:fabric-chaincode-shim:2.5.1'
-    testImplementation "com.google.protobuf:protobuf-java:4.26.0"
+    testImplementation "com.google.protobuf:protobuf-java:4.26.1"
+    testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
     testImplementation ':medtechchain.protos:0.0.1'
+
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testImplementation 'org.assertj:assertj-core:3.25.3'
     testImplementation 'org.mockito:mockito-core:5.11.0'

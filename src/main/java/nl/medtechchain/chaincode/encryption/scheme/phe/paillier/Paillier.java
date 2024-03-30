@@ -3,16 +3,19 @@ package nl.medtechchain.chaincode.encryption.scheme.phe.paillier;
 import nl.medtechchain.chaincode.encryption.exception.IllegalOperationException;
 import nl.medtechchain.chaincode.encryption.scheme.Plaintext;
 import nl.medtechchain.chaincode.encryption.scheme.phe.AbstractPHE;
-import nl.medtechchain.chaincode.subprocess.SubprocessCall;
 
-import java.io.IOException;
 import java.math.BigInteger;
 
-public final class Paillier extends AbstractPHE<PaillierEncKey> {
+public final class Paillier extends AbstractPHE<PaillierEncryptionKey> {
     private static final String BINARY_PATH = "/usr/lib/encrypt";
 
-    public Paillier(PaillierEncKey key) {
+    public Paillier(PaillierEncryptionKey key) {
         super(key);
+    }
+
+    @Override
+    public boolean isHomomorphic() {
+        return true;
     }
 
     @Override
@@ -39,15 +42,7 @@ public final class Paillier extends AbstractPHE<PaillierEncKey> {
     }
 
     @Override
-    public PaillierCiphertext encrypt(Plaintext plaintext) throws IOException, IllegalOperationException {
-        String command = String.format("%s encrypt --plaintext %s --ek '%s'", BINARY_PATH, plaintext, encryptionKey);
-        PaillierPlaintext plaintext1;
-        try {
-            plaintext1 = (PaillierPlaintext) plaintext;
-            assert plaintext1.getBitLength() == encryptionKey.getBitLength();
-            return new PaillierCiphertext(encryptionKey, new BigInteger(SubprocessCall.execute(command)));
-        } catch (ClassCastException | AssertionError e) {
-            throw new IllegalOperationException("Could not encrypt plaintext: " + plaintext, e);
-        }
+    public PaillierCiphertext encrypt(Plaintext plaintext) {
+        return null;
     }
 }

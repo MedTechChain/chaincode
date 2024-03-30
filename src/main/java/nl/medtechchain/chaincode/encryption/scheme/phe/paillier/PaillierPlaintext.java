@@ -1,12 +1,13 @@
 package nl.medtechchain.chaincode.encryption.scheme.phe.paillier;
 
+import nl.medtechchain.chaincode.encryption.scheme.BitLength;
 import nl.medtechchain.chaincode.encryption.scheme.Plaintext;
 
 public class PaillierPlaintext implements Plaintext {
-    private final PaillierBitLength bl;
+    private final BitLength bl;
     private final int plaintext;
 
-    PaillierPlaintext(PaillierBitLength bl, int plaintext) {
+    PaillierPlaintext(BitLength bl, int plaintext) {
         this.bl = bl;
         this.plaintext = plaintext;
     }
@@ -15,7 +16,7 @@ public class PaillierPlaintext implements Plaintext {
         return plaintext;
     }
 
-    public PaillierBitLength getBitLength() {
+    public BitLength getBitLength() {
         return bl;
     }
 

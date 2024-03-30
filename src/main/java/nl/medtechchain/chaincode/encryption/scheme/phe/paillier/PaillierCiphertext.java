@@ -9,10 +9,10 @@ import java.io.IOException;
 import java.math.BigInteger;
 
 public class PaillierCiphertext implements Ciphertext {
-    private final PaillierEncKey encryptionKey;
+    private final PaillierEncryptionKey encryptionKey;
     private final BigInteger ciphertext;
 
-    PaillierCiphertext(PaillierEncKey encryptionKey, BigInteger ciphertext) {
+    PaillierCiphertext(PaillierEncryptionKey encryptionKey, BigInteger ciphertext) {
         this.encryptionKey = encryptionKey;
         this.ciphertext = ciphertext;
     }

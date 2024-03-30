@@ -23,7 +23,7 @@ cd "$PROTOS_DIR_PATH"
 
 if [ ! -d "./bindings/java/build/libs/" ]; then
   if ! docker info >/dev/null 2>&1; then
-    error "Docker is not running"
+    echo "Docker is not running"
     exit 4
   fi
   ./build.sh
