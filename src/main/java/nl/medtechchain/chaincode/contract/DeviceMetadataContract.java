@@ -49,6 +49,11 @@ public final class DeviceMetadataContract implements ContractInterface {
         return ResponseUtil.success();
     }
 
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public Chaincode.Response Test(Context ctx, String s) {
+        return ResponseUtil.success("TEST", s.getBytes());
+    }
+
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public Chaincode.Response Query(Context ctx, String jsonString) {
