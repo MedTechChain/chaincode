@@ -241,6 +241,9 @@ public final class DeviceMetadataContract implements ContractInterface {
                 }
             }
 
+            if(count == 0)
+                return ResponseUtil.success(QueryResultType.COUNT_RESULT.name(), AverageResult.newBuilder().setResult(0).build().toByteArray());
+
             return ResponseUtil.success(QueryResultType.COUNT_RESULT.name(), AverageResult.newBuilder().setResult(result / count).build().toByteArray());
         } else return ResponseUtil.error("Error: Could not deserialize data");
 
