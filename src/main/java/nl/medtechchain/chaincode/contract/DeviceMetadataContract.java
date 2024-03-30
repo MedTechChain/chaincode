@@ -16,9 +16,7 @@ import org.hyperledger.fabric.contract.annotation.Contract;
 import org.hyperledger.fabric.contract.annotation.Info;
 import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
-import org.hyperledger.fabric.shim.Chaincode;
 import org.hyperledger.fabric.shim.ChaincodeStub;
-import org.hyperledger.fabric.shim.ResponseUtils;
 import org.hyperledger.fabric.shim.ledger.CompositeKey;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
@@ -32,31 +30,25 @@ public final class DeviceMetadataContract implements ContractInterface {
     private static final String INDEX_NAME = "UDI_HOSPITAL_DTYPE_TIMESTAMP";
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Chaincode.Response CreateDeviceMetadataAsset(Context ctx, String udi, DeviceType deviceType, String jsonString) {
+    public boolean CreateDeviceMetadataAsset(Context ctx, String udi, DeviceType deviceType, String jsonString) {
         Hospital hospital = getHospitalFromCtx(ctx);
-        if (hospital == Hospital.UNRECOGNIZED) return ResponseUtil.error("Hospital not recognized");
+        if (hospital == Hospital.UNRECOGNIZED) return false;
 
         EncryptedDeviceMetadata.Builder queryBuilder = EncryptedDeviceMetadata.newBuilder();
         try {
             JsonFormat.parser().merge(jsonString, queryBuilder);
         } catch (InvalidProtocolBufferException e) {
-            return ResponseUtil.error("Could not deserialize");
+            return false;
         }
         EncryptedDeviceMetadata md = queryBuilder.build();
 
         CompositeKey key = compositeKey(ctx, udi, hospital, deviceType, Instant.now().getEpochSecond());
         ctx.getStub().putState(key.toString(), md.getRawBytes().toByteArray());
-        return ResponseUtil.success();
+        return true;
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public Chaincode.Response Test(Context ctx, String s) {
-        return ResponseUtil.success("TEST", s.getBytes());
-    }
-
-
-    @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public Chaincode.Response Query(Context ctx, String jsonString) {
+    public String Query(Context ctx, String jsonString) {
         try {
             Query.Builder queryBuilder = Query.newBuilder();
             JsonFormat.parser().merge(jsonString, queryBuilder);
@@ -69,16 +61,14 @@ public final class DeviceMetadataContract implements ContractInterface {
                     return countAll(ctx, query);
                 case AVERAGE:
                     return average(ctx, query);
-                case UNRECOGNIZED:
-                    return ResponseUtil.error("");
             }
-            return ResponseUtils.newSuccessResponse();
+            return ResponseUtil.error("Unrecognized query");
         } catch (InvalidProtocolBufferException e) {
             return ResponseUtil.error(e.getMessage());
         }
     }
 
-    private Chaincode.Response count(Context ctx, Query query) {
+    private String count(Context ctx, Query query) {
         if (!query.hasStartTime() || !query.hasStopTime())
             return ResponseUtil.error("Malformed query: Time period required!");
 
@@ -121,11 +111,15 @@ public final class DeviceMetadataContract implements ContractInterface {
                 }
             }
 
-            return ResponseUtil.success(QueryResultType.COUNT_RESULT.name(), CountResult.newBuilder().setResult(result).build().toByteArray());
+            try {
+                return JsonFormat.printer().print(CountResult.newBuilder().setResult(result).build());
+            } catch (InvalidProtocolBufferException e) {
+                return ResponseUtil.error("Error: Could not serialize data");
+            }
         } else return ResponseUtil.error("Error: Could not deserialize data");
     }
 
-    private Chaincode.Response countAll(Context ctx, Query query) {
+    private String countAll(Context ctx, Query query) {
         if (!query.hasStartTime() || !query.hasStopTime())
             return ResponseUtil.error("Malformed query: Time period required!");
 
@@ -170,7 +164,11 @@ public final class DeviceMetadataContract implements ContractInterface {
                 }
             }
 
-            return ResponseUtil.success(QueryResultType.COUNT_RESULT.name(), CountAllResult.newBuilder().putAllResult(result).build().toByteArray());
+            try {
+                return JsonFormat.printer().print(CountAllResult.newBuilder().putAllResult(result).build());
+            } catch (InvalidProtocolBufferException e) {
+                return ResponseUtil.error("Error: Could not serialize data");
+            }
         } else return ResponseUtil.error("Error: Could not deserialize data");
     }
 
@@ -196,7 +194,7 @@ public final class DeviceMetadataContract implements ContractInterface {
         return false;
     }
 
-    private Chaincode.Response average(Context ctx, Query query) {
+    private String average(Context ctx, Query query) {
         if (!query.hasStartTime() || !query.hasStopTime())
             return ResponseUtil.error("Malformed query: Time period required!");
 
@@ -258,9 +256,15 @@ public final class DeviceMetadataContract implements ContractInterface {
             }
 
             if (count == 0)
-                return ResponseUtil.success(QueryResultType.COUNT_RESULT.name(), AverageResult.newBuilder().setResult(0).build().toByteArray());
+                result = 0;
+            else
+                result /= count;
 
-            return ResponseUtil.success(QueryResultType.COUNT_RESULT.name(), AverageResult.newBuilder().setResult(result / count).build().toByteArray());
+            try {
+                return JsonFormat.printer().print(AverageResult.newBuilder().setResult(result / count).build());
+            } catch (InvalidProtocolBufferException e) {
+                return ResponseUtil.error("Error: Could not serialize data");
+            }
         } else return ResponseUtil.error("Error: Could not deserialize data");
 
     }

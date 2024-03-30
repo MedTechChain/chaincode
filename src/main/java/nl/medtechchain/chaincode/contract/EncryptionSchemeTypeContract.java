@@ -1,5 +1,7 @@
 package nl.medtechchain.chaincode.contract;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import nl.medtechchain.chaincode.contract.util.ResponseUtil;
 import nl.medtechchain.protos.encryption.EncryptionSchemeType;
 import nl.medtechchain.protos.encryption.EncryptionSchemeTypeList;
@@ -8,7 +10,6 @@ import org.hyperledger.fabric.contract.annotation.Contract;
 import org.hyperledger.fabric.contract.annotation.Info;
 import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
-import org.hyperledger.fabric.shim.Chaincode;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 
 import java.util.List;
@@ -24,24 +25,24 @@ public class EncryptionSchemeTypeContract {
     private static final String HOM_ENC_TYPE = "HOM_ENC_TYPE";
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Chaincode.Response InitLedger(final Context ctx) {
+    public boolean InitLedger(final Context ctx) {
         return SetEncryptionSchemeType(ctx, EncryptionSchemeType.PAILLIER_2048);
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Chaincode.Response SetEncryptionSchemeType(final Context ctx, final EncryptionSchemeType scheme) {
+    public boolean SetEncryptionSchemeType(final Context ctx, final EncryptionSchemeType scheme) {
         if (!checkAccess(ctx))
-            return ResponseUtil.forbidden("Unauthorized to perform this operation!");
+            return false;
 
         ChaincodeStub stub = ctx.getStub();
         stub.putStringState(HOM_ENC_TYPE, scheme.name());
-        return ResponseUtil.success();
+        return true;
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public Chaincode.Response GetEncryptionSchemeTypes(final Context ctx) {
+    public String GetEncryptionSchemeTypes(final Context ctx) {
         if (!checkAccess(ctx))
-            return ResponseUtil.forbidden("Unauthorized to perform this operation!");
+            return ResponseUtil.error("Unauthorized to perform this operation!");
 
         ChaincodeStub stub = ctx.getStub();
         EncryptionSchemeType current = EncryptionSchemeType.valueOf(stub.getStringState(HOM_ENC_TYPE));
@@ -58,7 +59,11 @@ public class EncryptionSchemeTypeContract {
                 .addAllEncryptionSchemeTypeList(encryptionSchemes)
                 .build();
 
-        return ResponseUtil.success("ENCRYPTION_SCHEME_LIST", encryptionSchemeList.toByteArray());
+        try {
+            return JsonFormat.printer().print(encryptionSchemeList);
+        } catch (InvalidProtocolBufferException e) {
+            return ResponseUtil.error("Could not serialize data");
+        }
     }
 
     // TODO: Perform Access control checks
