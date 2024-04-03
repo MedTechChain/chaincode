@@ -24,27 +24,29 @@ import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 import java.time.Instant;
 import java.util.*;
 
+import org.hyperledger.fabric.contract.execution.impl.ContractExecutionService;
+
 @Contract(name = "devicemetadata", info = @Info(title = "Device Metadata Contract", license = @License(name = "Apache 2.0 License", url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
 public final class DeviceMetadataContract implements ContractInterface {
 
     private static final String INDEX_NAME = "UDI_HOSPITAL_DTYPE_TIMESTAMP";
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public boolean CreateDeviceMetadataAsset(Context ctx, String udi, DeviceType deviceType, String jsonString) {
+    public String CreateDeviceMetadataAsset(Context ctx, String udi, String deviceType, String jsonString) {
         Hospital hospital = getHospitalFromCtx(ctx);
-        if (hospital == Hospital.UNRECOGNIZED) return false;
+        if (hospital == Hospital.UNRECOGNIZED) return "false";
 
         EncryptedDeviceMetadata.Builder queryBuilder = EncryptedDeviceMetadata.newBuilder();
         try {
             JsonFormat.parser().merge(jsonString, queryBuilder);
         } catch (InvalidProtocolBufferException e) {
-            return false;
+            return "false";
         }
         EncryptedDeviceMetadata md = queryBuilder.build();
 
-        CompositeKey key = compositeKey(ctx, udi, hospital, deviceType, Instant.now().getEpochSecond());
+        CompositeKey key = compositeKey(ctx, udi, hospital, DeviceType.valueOf(deviceType), Instant.now().getEpochSecond());
         ctx.getStub().putState(key.toString(), md.getRawBytes().toByteArray());
-        return true;
+        return "true";
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
