@@ -1,6 +1,5 @@
 package nl.medtechchain.chaincode.contract;
 
-import com.google.privacy.differentialprivacy.LaplaceNoise;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
@@ -11,6 +10,7 @@ import nl.medtechchain.protos.devicemetadata.EncryptedDeviceMetadata;
 import nl.medtechchain.protos.devicemetadata.EncryptedPortableDeviceMetadata;
 import nl.medtechchain.protos.devicemetadata.EncryptedWearableDeviceMetadata;
 import nl.medtechchain.protos.query.*;
+import org.hyperledger.fabric.Logger;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.Contract;
@@ -29,6 +29,8 @@ import java.util.*;
 public final class DeviceMetadataContract implements ContractInterface {
 
     private static final String INDEX_NAME = "UDI_HOSPITAL_DTYPE_TIMESTAMP";
+
+    private static final Logger logger = Logger.getLogger(DeviceMetadataContract.class);
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public String CreateDeviceMetadataAsset(Context ctx, String udi, String deviceType, String jsonString) {
@@ -55,8 +57,10 @@ public final class DeviceMetadataContract implements ContractInterface {
             JsonFormat.parser().merge(jsonString, queryBuilder);
             Query query = queryBuilder.build();
 
+            logger.info("Perform " + query.getQueryType().name() + " query");
             switch (query.getQueryType()) {
                 case COUNT:
+
                     return count(ctx, query);
                 case COUNT_ALL:
                     return countAll(ctx, query);
@@ -85,9 +89,11 @@ public final class DeviceMetadataContract implements ContractInterface {
         if (assets.isPresent()) {
             long result = 0;
 
+            logger.info("Assets present, computing count");
+            int counter = 0;
             for (EncryptedDeviceMetadata asset : assets.get()) {
+                logger.info("Asset " + counter++ + ": " + asset.getType().name());
                 try {
-                    Descriptors.FieldDescriptor fieldDescriptor;
                     switch (asset.getType()) {
                         case WEARABLE_DEVICE:
                             EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
@@ -101,12 +107,12 @@ public final class DeviceMetadataContract implements ContractInterface {
                             break;
                     }
                 } catch (Throwable t) {
-                    System.out.println(t.getMessage());
+                    logger.error(t.getMessage());
                 }
             }
 
-            var noise = new LaplaceNoise();
-            result = noise.addNoise(result, 1, 1, 0.5, 1);
+//            var noise = new LaplaceNoise();
+//            result = noise.addNoise(result, 1, 1, 0.5, 1);
 
             try {
                 return JsonFormat.printer().print(CountResult.newBuilder().setResult((int) result).build());
@@ -134,7 +140,10 @@ public final class DeviceMetadataContract implements ContractInterface {
         if (assets.isPresent()) {
             Map<String, Integer> result = new HashMap<>();
 
+            logger.info("Assets present, computing count all");
+            int counter = 0;
             for (EncryptedDeviceMetadata asset : assets.get()) {
+                logger.info("Asset " + counter++ + ": " + asset.getType().name());
                 try {
                     Descriptors.FieldDescriptor fieldDescriptor;
                     String fieldValue;
@@ -157,12 +166,12 @@ public final class DeviceMetadataContract implements ContractInterface {
                             break;
                     }
                 } catch (Throwable t) {
-                    System.out.println(t.getMessage());
+                    logger.error(t.getMessage());
                 }
             }
 
-            var noise = new LaplaceNoise();
-            result.replaceAll((k, v) -> (int) noise.addNoise(v, 1, 1, 0.5, 1));
+//            var noise = new LaplaceNoise();
+//            result.replaceAll((k, v) -> (int) noise.addNoise(v, 1, 1, 0.5, 1));
 
             try {
                 return JsonFormat.printer().print(CountAllResult.newBuilder().putAllResult(result).build());
@@ -218,7 +227,10 @@ public final class DeviceMetadataContract implements ContractInterface {
             int count = 0;
 
             double aux = 0;
+            logger.info("Assets present, computing average");
+            int counter = 0;
             for (EncryptedDeviceMetadata asset : assets.get()) {
+                logger.info("Asset " + counter++ + ": " + asset.getType().name());
                 try {
                     Descriptors.FieldDescriptor fieldDescriptor;
                     String fieldValue;
@@ -253,12 +265,9 @@ public final class DeviceMetadataContract implements ContractInterface {
 
                     result += aux;
                 } catch (Throwable t) {
-                    System.out.println(t.getMessage());
+                    logger.error(t.getMessage());
                 }
             }
-
-            var noise = new LaplaceNoise();
-            result = noise.addNoise(result, 1, 1, 0.5, 1);
 
             if (count == 0)
                 result = 0;
@@ -289,6 +298,8 @@ public final class DeviceMetadataContract implements ContractInterface {
 
         QueryResultsIterator<KeyValue> iterator = stub.getStateByRange("", "");
 
+        logger.info("Is iterator empty: " + iterator.iterator().hasNext());
+
         List<EncryptedDeviceMetadata> result = new ArrayList<>();
 
         for (KeyValue kv : iterator) {
@@ -300,13 +311,15 @@ public final class DeviceMetadataContract implements ContractInterface {
 
                 var assetHospital = Hospital.valueOf(compositeKey.getAttributes().get(1));
                 var assetDeviceType = DeviceType.valueOf(compositeKey.getAttributes().get(2));
-                var assetTimestamp = Long.getLong(compositeKey.getAttributes().get(3));
+                var assetTimestamp = Long.parseLong(compositeKey.getAttributes().get(3));
+                logger.info(compositeKey.toString());
 
-                if (startTime.getSeconds() < assetTimestamp && assetTimestamp < stopTime.getSeconds() && types.contains(assetDeviceType) && hospitals.contains(assetHospital))
+                if (startTime.getSeconds() < assetTimestamp && assetTimestamp < stopTime.getSeconds() && types.contains(assetDeviceType) && hospitals.contains(assetHospital)) {
+                    logger.info("Added");
                     result.add(asset);
-
+                }
             } catch (InvalidProtocolBufferException e) {
-                System.out.println(e.getMessage());
+                logger.error(e.getMessage());
                 return Optional.empty();
             }
         }
