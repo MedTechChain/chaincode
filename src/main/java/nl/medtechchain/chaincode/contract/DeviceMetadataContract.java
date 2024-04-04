@@ -33,21 +33,21 @@ public final class DeviceMetadataContract implements ContractInterface {
     private static final Logger logger = Logger.getLogger(DeviceMetadataContract.class);
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public String CreateDeviceMetadataAsset(Context ctx, String udi, String deviceType, String jsonString) {
+    public boolean CreateDeviceMetadataAsset(Context ctx, String udi, String deviceType, String jsonString) {
         Hospital hospital = getHospitalFromCtx(ctx);
-        if (hospital == Hospital.UNRECOGNIZED) return "false";
+        if (hospital == Hospital.UNRECOGNIZED) return false;
 
         EncryptedDeviceMetadata.Builder queryBuilder = EncryptedDeviceMetadata.newBuilder();
         try {
             JsonFormat.parser().merge(jsonString, queryBuilder);
         } catch (InvalidProtocolBufferException e) {
-            return "false";
+            return false;
         }
         EncryptedDeviceMetadata md = queryBuilder.build();
 
         CompositeKey key = compositeKey(ctx, udi, hospital, DeviceType.valueOf(deviceType), Instant.now().getEpochSecond());
-        ctx.getStub().putState(key.toString(), md.getRawBytes().toByteArray());
-        return "true";
+        ctx.getStub().putState(key.toString(), md.toByteArray());
+        return true;
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
@@ -86,40 +86,38 @@ public final class DeviceMetadataContract implements ContractInterface {
 
         var assets = retrieveData(ctx, query.getStartTime(), query.getStopTime(), typeFilter, hospitalFilter);
 
-        if (assets.isPresent()) {
-            long result = 0;
+        long result = 0;
 
-            logger.info("Assets present, computing count");
-            int counter = 0;
-            for (EncryptedDeviceMetadata asset : assets.get()) {
-                logger.info("Asset " + counter++ + ": " + asset.getType().name());
-                try {
-                    switch (asset.getType()) {
-                        case WEARABLE_DEVICE:
-                            EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
-                            if (!filter(query.getFilterList(), mdw))
-                                result++;
-                            break;
-                        case PORTABLE_DEVICE:
-                            EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
-                            if (!filter(query.getFilterList(), mdp))
-                                result++;
-                            break;
-                    }
-                } catch (Throwable t) {
-                    logger.error(t.getMessage());
+        logger.info("Assets present, computing count");
+        int counter = 0;
+        for (EncryptedDeviceMetadata asset : assets) {
+            logger.info("Asset " + counter++ + ": " + asset.getType().name());
+            try {
+                switch (asset.getType()) {
+                    case WEARABLE_DEVICE:
+                        EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
+                        if (!filter(query.getFilterList(), mdw))
+                            result++;
+                        break;
+                    case PORTABLE_DEVICE:
+                        EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
+                        if (!filter(query.getFilterList(), mdp))
+                            result++;
+                        break;
                 }
+            } catch (Throwable t) {
+                logger.error("Error: " + t.getMessage());
             }
+        }
 
 //            var noise = new LaplaceNoise();
 //            result = noise.addNoise(result, 1, 1, 0.5, 1);
 
-            try {
-                return JsonFormat.printer().print(CountResult.newBuilder().setResult((int) result).build());
-            } catch (InvalidProtocolBufferException e) {
-                return ResponseUtil.error("Error: Could not serialize data");
-            }
-        } else return ResponseUtil.error("Error: Could not deserialize data");
+        try {
+            return JsonFormat.printer().print(CountResult.newBuilder().setResult((int) result).build());
+        } catch (InvalidProtocolBufferException e) {
+            return ResponseUtil.error("Error: Could not serialize data");
+        }
     }
 
     private String countAll(Context ctx, Query query) {
@@ -136,49 +134,46 @@ public final class DeviceMetadataContract implements ContractInterface {
         var hospitalFilter = hospitalListFilter(query);
 
         var assets = retrieveData(ctx, query.getStartTime(), query.getStopTime(), typeFilter, hospitalFilter);
+        Map<String, Integer> result = new HashMap<>();
 
-        if (assets.isPresent()) {
-            Map<String, Integer> result = new HashMap<>();
+        logger.info("Assets present, computing count all");
+        int counter = 0;
+        for (EncryptedDeviceMetadata asset : assets) {
+            logger.info("Asset " + counter++ + ": " + asset.getType().name());
+            try {
+                Descriptors.FieldDescriptor fieldDescriptor;
+                String fieldValue;
+                switch (asset.getType()) {
+                    case WEARABLE_DEVICE:
+                        EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
+                        fieldDescriptor = mdw.getDescriptorForType().findFieldByName(query.getField());
+                        fieldValue = (String) asset.getField(fieldDescriptor);
+                        if (filter(query.getFilterList(), mdw)) continue;
 
-            logger.info("Assets present, computing count all");
-            int counter = 0;
-            for (EncryptedDeviceMetadata asset : assets.get()) {
-                logger.info("Asset " + counter++ + ": " + asset.getType().name());
-                try {
-                    Descriptors.FieldDescriptor fieldDescriptor;
-                    String fieldValue;
-                    switch (asset.getType()) {
-                        case WEARABLE_DEVICE:
-                            EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
-                            fieldDescriptor = mdw.getDescriptorForType().findFieldByName(query.getField());
-                            fieldValue = (String) asset.getField(fieldDescriptor);
-                            if (filter(query.getFilterList(), mdw)) continue;
+                        if (!result.containsKey(fieldValue)) result.put(fieldValue, 0);
+                        break;
+                    case PORTABLE_DEVICE:
+                        EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
+                        fieldDescriptor = mdp.getDescriptorForType().findFieldByName(query.getField());
+                        fieldValue = (String) asset.getField(fieldDescriptor);
+                        if (filter(query.getFilterList(), mdp)) continue;
 
-                            if (!result.containsKey(fieldValue)) result.put(fieldValue, 0);
-                            break;
-                        case PORTABLE_DEVICE:
-                            EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
-                            fieldDescriptor = mdp.getDescriptorForType().findFieldByName(query.getField());
-                            fieldValue = (String) asset.getField(fieldDescriptor);
-                            if (filter(query.getFilterList(), mdp)) continue;
-
-                            if (!result.containsKey(fieldValue)) result.put(fieldValue, 0);
-                            break;
-                    }
-                } catch (Throwable t) {
-                    logger.error(t.getMessage());
+                        if (!result.containsKey(fieldValue)) result.put(fieldValue, 0);
+                        break;
                 }
+            } catch (Throwable t) {
+                logger.error("Error: " + t.getMessage());
             }
+        }
 
 //            var noise = new LaplaceNoise();
 //            result.replaceAll((k, v) -> (int) noise.addNoise(v, 1, 1, 0.5, 1));
 
-            try {
-                return JsonFormat.printer().print(CountAllResult.newBuilder().putAllResult(result).build());
-            } catch (InvalidProtocolBufferException e) {
-                return ResponseUtil.error("Error: Could not serialize data");
-            }
-        } else return ResponseUtil.error("Error: Could not deserialize data");
+        try {
+            return JsonFormat.printer().print(CountAllResult.newBuilder().putAllResult(result).build());
+        } catch (InvalidProtocolBufferException e) {
+            return ResponseUtil.error("Error: Could not serialize data");
+        }
     }
 
     private boolean filter(FilterList fl, EncryptedWearableDeviceMetadata mdw) {
@@ -222,65 +217,62 @@ public final class DeviceMetadataContract implements ContractInterface {
 
         var assets = retrieveData(ctx, query.getStartTime(), query.getStopTime(), typeFilter, hospitalFilter);
 
-        if (assets.isPresent()) {
-            double result = 0;
-            int count = 0;
+        double result = 0;
+        int count = 0;
 
-            double aux = 0;
-            logger.info("Assets present, computing average");
-            int counter = 0;
-            for (EncryptedDeviceMetadata asset : assets.get()) {
-                logger.info("Asset " + counter++ + ": " + asset.getType().name());
-                try {
-                    Descriptors.FieldDescriptor fieldDescriptor;
-                    String fieldValue;
-                    switch (asset.getType()) {
-                        case WEARABLE_DEVICE:
-                            EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
-                            fieldDescriptor = mdw.getDescriptorForType().findFieldByName(query.getField());
-                            fieldValue = (String) asset.getField(fieldDescriptor);
-                            if (filter(query.getFilterList(), mdw)) continue;
-
-                            try {
-                                aux = Double.parseDouble(fieldValue);
-                                count++;
-                            } catch (Throwable t) {
-                                aux = 0;
-                            }
-                            break;
-                        case PORTABLE_DEVICE:
-                            EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
-                            fieldDescriptor = mdp.getDescriptorForType().findFieldByName(query.getField());
-                            fieldValue = (String) asset.getField(fieldDescriptor);
-                            if (filter(query.getFilterList(), mdp)) continue;
-
-                            try {
-                                aux = Double.parseDouble(fieldValue);
-                                count++;
-                            } catch (Throwable t) {
-                                aux = 0;
-                            }
-                            break;
-                    }
-
-                    result += aux;
-                } catch (Throwable t) {
-                    logger.error(t.getMessage());
-                }
-            }
-
-            if (count == 0)
-                result = 0;
-            else
-                result /= count;
-
+        double aux = 0;
+        logger.info("Assets present, computing average");
+        int counter = 0;
+        for (EncryptedDeviceMetadata asset : assets) {
+            logger.info("Asset " + counter++ + ": " + asset.getType().name());
             try {
-                return JsonFormat.printer().print(AverageResult.newBuilder().setResult(result).build());
-            } catch (InvalidProtocolBufferException e) {
-                return ResponseUtil.error("Error: Could not serialize data");
-            }
-        } else return ResponseUtil.error("Error: Could not deserialize data");
+                Descriptors.FieldDescriptor fieldDescriptor;
+                String fieldValue;
+                switch (asset.getType()) {
+                    case WEARABLE_DEVICE:
+                        EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
+                        fieldDescriptor = mdw.getDescriptorForType().findFieldByName(query.getField());
+                        fieldValue = (String) asset.getField(fieldDescriptor);
+                        if (filter(query.getFilterList(), mdw)) continue;
 
+                        try {
+                            aux = Double.parseDouble(fieldValue);
+                            count++;
+                        } catch (Throwable t) {
+                            aux = 0;
+                        }
+                        break;
+                    case PORTABLE_DEVICE:
+                        EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
+                        fieldDescriptor = mdp.getDescriptorForType().findFieldByName(query.getField());
+                        fieldValue = (String) asset.getField(fieldDescriptor);
+                        if (filter(query.getFilterList(), mdp)) continue;
+
+                        try {
+                            aux = Double.parseDouble(fieldValue);
+                            count++;
+                        } catch (Throwable t) {
+                            aux = 0;
+                        }
+                        break;
+                }
+
+                result += aux;
+            } catch (Throwable t) {
+                logger.error("Error: " + t.getMessage());
+            }
+        }
+
+        if (count == 0)
+            result = 0;
+        else
+            result /= count;
+
+        try {
+            return JsonFormat.printer().print(AverageResult.newBuilder().setResult(result).build());
+        } catch (InvalidProtocolBufferException e) {
+            return ResponseUtil.error("Error: Could not serialize data");
+        }
     }
 
     private List<DeviceType> deviceTypeListFilter(Query query) {
@@ -293,38 +285,40 @@ public final class DeviceMetadataContract implements ContractInterface {
         return List.of(Hospital.values());
     }
 
-    private Optional<List<EncryptedDeviceMetadata>> retrieveData(Context ctx, Timestamp startTime, Timestamp stopTime, List<DeviceType> types, List<Hospital> hospitals) {
+    private List<EncryptedDeviceMetadata> retrieveData(Context ctx, Timestamp startTime, Timestamp stopTime, List<DeviceType> types, List<Hospital> hospitals) {
         ChaincodeStub stub = ctx.getStub();
 
-        QueryResultsIterator<KeyValue> iterator = stub.getStateByRange("", "");
+        QueryResultsIterator<KeyValue> iterator = stub.getStateByPartialCompositeKey(ctx.getStub().createCompositeKey(INDEX_NAME));
 
         logger.info("Is iterator empty: " + !iterator.iterator().hasNext());
 
         List<EncryptedDeviceMetadata> result = new ArrayList<>();
 
         for (KeyValue kv : iterator) {
-            EncryptedDeviceMetadata asset;
             try {
-                asset = EncryptedDeviceMetadata.parseFrom(kv.getValue());
-
                 CompositeKey compositeKey = ctx.getStub().splitCompositeKey(kv.getKey());
+
+                logger.info(compositeKey.toString());
 
                 var assetHospital = Hospital.valueOf(compositeKey.getAttributes().get(1));
                 var assetDeviceType = DeviceType.valueOf(compositeKey.getAttributes().get(2));
                 var assetTimestamp = Long.parseLong(compositeKey.getAttributes().get(3));
-                logger.info(compositeKey.toString());
+
+                logger.info(assetTimestamp + " <> " + assetHospital + "<>" + assetDeviceType.name());
+
+
+                EncryptedDeviceMetadata asset = EncryptedDeviceMetadata.parseFrom(kv.getValue());
 
                 if (startTime.getSeconds() < assetTimestamp && assetTimestamp < stopTime.getSeconds() && types.contains(assetDeviceType) && hospitals.contains(assetHospital)) {
                     logger.info("Added");
                     result.add(asset);
                 }
             } catch (InvalidProtocolBufferException e) {
-                logger.error(e.getMessage());
-                return Optional.empty();
+                logger.error("Error: " + e.getMessage());
             }
         }
 
-        return Optional.of(result);
+        return result;
     }
 
     private Hospital getHospitalFromCtx(Context ctx) {
