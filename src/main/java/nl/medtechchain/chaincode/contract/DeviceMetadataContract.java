@@ -74,11 +74,8 @@ public final class DeviceMetadataContract implements ContractInterface {
         if (!query.hasStartTime() || !query.hasStopTime())
             return ResponseUtil.error("Malformed query: Time period required!");
 
-        var validFields = List.of("medical_speciality", "manufacturer_name", "operating_system");
-        if (query.getField().isEmpty() || !validFields.contains(query.getField()))
-            return ResponseUtil.error("Malformed query: Invalid field: " + query.getField());
-
-        if (query.hasValue()) return ResponseUtil.error("Malformed query: Value specified!");
+        if (!query.getField().isEmpty())
+            return ResponseUtil.error("Malformed query: Field specified... should use filters for counting: " + query.getField());
 
         var typeFilter = deviceTypeListFilter(query);
         var hospitalFilter = hospitalListFilter(query);
@@ -91,20 +88,15 @@ public final class DeviceMetadataContract implements ContractInterface {
             for (EncryptedDeviceMetadata asset : assets.get()) {
                 try {
                     Descriptors.FieldDescriptor fieldDescriptor;
-                    String fieldValue;
                     switch (asset.getType()) {
                         case WEARABLE_DEVICE:
                             EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
-                            fieldDescriptor = mdw.getDescriptorForType().findFieldByName(query.getField());
-                            fieldValue = (String) asset.getField(fieldDescriptor);
-                            if (!filter(query.getFilterList(), mdw) && Objects.equals(fieldValue, query.getValue()))
+                            if (!filter(query.getFilterList(), mdw))
                                 result++;
                             break;
                         case PORTABLE_DEVICE:
                             EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
-                            fieldDescriptor = mdp.getDescriptorForType().findFieldByName(query.getField());
-                            fieldValue = (String) asset.getField(fieldDescriptor);
-                            if (!filter(query.getFilterList(), mdp) && Objects.equals(fieldValue, query.getValue()))
+                            if (!filter(query.getFilterList(), mdp))
                                 result++;
                             break;
                     }
@@ -209,6 +201,8 @@ public final class DeviceMetadataContract implements ContractInterface {
         var validFields = List.of("aquired_price", "rental_price");
         if (query.getField().isEmpty() || !validFields.contains(query.getField()))
             return ResponseUtil.error("Malformed query: Invalid field: " + query.getField());
+
+        if (query.hasValue()) return ResponseUtil.error("Malformed query: Value specified!");
 
         var typeFilter = deviceTypeListFilter(query);
         var hospitalFilter = hospitalListFilter(query);
