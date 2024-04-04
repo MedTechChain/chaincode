@@ -114,7 +114,7 @@ public final class DeviceMetadataContract implements ContractInterface {
 //            result = noise.addNoise(result, 1, 1, 0.5, 1);
 
         try {
-            return JsonFormat.printer().print(CountResult.newBuilder().setResult((int) result).build());
+            return JsonFormat.printer().includingDefaultValueFields().print(CountResult.newBuilder().setResult((int) result).build());
         } catch (InvalidProtocolBufferException e) {
             return ResponseUtil.error("Error: Could not serialize data");
         }
@@ -147,7 +147,7 @@ public final class DeviceMetadataContract implements ContractInterface {
                     case WEARABLE_DEVICE:
                         EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
                         fieldDescriptor = mdw.getDescriptorForType().findFieldByName(query.getField());
-                        fieldValue = (String) asset.getField(fieldDescriptor);
+                        fieldValue = (String) mdw.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdw)) continue;
 
                         if (!result.containsKey(fieldValue)) result.put(fieldValue, 0);
@@ -155,7 +155,7 @@ public final class DeviceMetadataContract implements ContractInterface {
                     case PORTABLE_DEVICE:
                         EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
                         fieldDescriptor = mdp.getDescriptorForType().findFieldByName(query.getField());
-                        fieldValue = (String) asset.getField(fieldDescriptor);
+                        fieldValue = (String) mdp.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdp)) continue;
 
                         if (!result.containsKey(fieldValue)) result.put(fieldValue, 0);
@@ -170,7 +170,7 @@ public final class DeviceMetadataContract implements ContractInterface {
 //            result.replaceAll((k, v) -> (int) noise.addNoise(v, 1, 1, 0.5, 1));
 
         try {
-            return JsonFormat.printer().print(CountAllResult.newBuilder().putAllResult(result).build());
+            return JsonFormat.printer().includingDefaultValueFields().print(CountAllResult.newBuilder().putAllResult(result).build());
         } catch (InvalidProtocolBufferException e) {
             return ResponseUtil.error("Error: Could not serialize data");
         }
@@ -232,7 +232,7 @@ public final class DeviceMetadataContract implements ContractInterface {
                     case WEARABLE_DEVICE:
                         EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
                         fieldDescriptor = mdw.getDescriptorForType().findFieldByName(query.getField());
-                        fieldValue = (String) asset.getField(fieldDescriptor);
+                        fieldValue = (String) mdw.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdw)) continue;
 
                         try {
@@ -245,7 +245,7 @@ public final class DeviceMetadataContract implements ContractInterface {
                     case PORTABLE_DEVICE:
                         EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
                         fieldDescriptor = mdp.getDescriptorForType().findFieldByName(query.getField());
-                        fieldValue = (String) asset.getField(fieldDescriptor);
+                        fieldValue = (String) mdp.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdp)) continue;
 
                         try {
@@ -269,7 +269,7 @@ public final class DeviceMetadataContract implements ContractInterface {
             result /= count;
 
         try {
-            return JsonFormat.printer().print(AverageResult.newBuilder().setResult(result).build());
+            return JsonFormat.printer().includingDefaultValueFields().print(AverageResult.newBuilder().setResult(result).build());
         } catch (InvalidProtocolBufferException e) {
             return ResponseUtil.error("Error: Could not serialize data");
         }
