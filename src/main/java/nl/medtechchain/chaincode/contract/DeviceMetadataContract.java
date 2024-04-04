@@ -298,7 +298,7 @@ public final class DeviceMetadataContract implements ContractInterface {
 
         QueryResultsIterator<KeyValue> iterator = stub.getStateByRange("", "");
 
-        logger.info("Is iterator empty: " + iterator.iterator().hasNext());
+        logger.info("Is iterator empty: " + !iterator.iterator().hasNext());
 
         List<EncryptedDeviceMetadata> result = new ArrayList<>();
 
