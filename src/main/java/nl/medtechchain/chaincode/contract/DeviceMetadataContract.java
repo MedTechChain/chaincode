@@ -1,5 +1,6 @@
 package nl.medtechchain.chaincode.contract;
 
+import com.google.privacy.differentialprivacy.LaplaceNoise;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Timestamp;
@@ -23,8 +24,6 @@ import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 
 import java.time.Instant;
 import java.util.*;
-
-import org.hyperledger.fabric.contract.execution.impl.ContractExecutionService;
 
 @Contract(name = "devicemetadata", info = @Info(title = "Device Metadata Contract", license = @License(name = "Apache 2.0 License", url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
 public final class DeviceMetadataContract implements ContractInterface {
@@ -71,6 +70,7 @@ public final class DeviceMetadataContract implements ContractInterface {
     }
 
     private String count(Context ctx, Query query) {
+
         if (!query.hasStartTime() || !query.hasStopTime())
             return ResponseUtil.error("Malformed query: Time period required!");
 
@@ -86,7 +86,7 @@ public final class DeviceMetadataContract implements ContractInterface {
         var assets = retrieveData(ctx, query.getStartTime(), query.getStopTime(), typeFilter, hospitalFilter);
 
         if (assets.isPresent()) {
-            int result = 0;
+            long result = 0;
 
             for (EncryptedDeviceMetadata asset : assets.get()) {
                 try {
@@ -113,8 +113,11 @@ public final class DeviceMetadataContract implements ContractInterface {
                 }
             }
 
+            var noise = new LaplaceNoise();
+            result = noise.addNoise(result, 1, 1, 0.5, 1);
+
             try {
-                return JsonFormat.printer().print(CountResult.newBuilder().setResult(result).build());
+                return JsonFormat.printer().print(CountResult.newBuilder().setResult((int) result).build());
             } catch (InvalidProtocolBufferException e) {
                 return ResponseUtil.error("Error: Could not serialize data");
             }
@@ -165,6 +168,9 @@ public final class DeviceMetadataContract implements ContractInterface {
                     System.out.println(t.getMessage());
                 }
             }
+
+            var noise = new LaplaceNoise();
+            result.replaceAll((k, v) -> (int) noise.addNoise(v, 1, 1, 0.5, 1));
 
             try {
                 return JsonFormat.printer().print(CountAllResult.newBuilder().putAllResult(result).build());
@@ -257,13 +263,16 @@ public final class DeviceMetadataContract implements ContractInterface {
                 }
             }
 
+            var noise = new LaplaceNoise();
+            result = noise.addNoise(result, 1, 1, 0.5, 1);
+
             if (count == 0)
                 result = 0;
             else
                 result /= count;
 
             try {
-                return JsonFormat.printer().print(AverageResult.newBuilder().setResult(result / count).build());
+                return JsonFormat.printer().print(AverageResult.newBuilder().setResult(result).build());
             } catch (InvalidProtocolBufferException e) {
                 return ResponseUtil.error("Error: Could not serialize data");
             }
