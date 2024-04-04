@@ -86,9 +86,9 @@ public final class DeviceMetadataContract implements ContractInterface {
 
         var assets = retrieveData(ctx, query.getStartTime(), query.getStopTime(), typeFilter, hospitalFilter);
 
-        long result = 0;
+        int result = 0;
 
-        logger.info("Assets present, computing count");
+        logger.info("Assets present, computing count...");
         int counter = 0;
         for (EncryptedDeviceMetadata asset : assets) {
             logger.info("Asset " + counter++ + ": " + asset.getType().name());
@@ -96,13 +96,15 @@ public final class DeviceMetadataContract implements ContractInterface {
                 switch (asset.getType()) {
                     case WEARABLE_DEVICE:
                         EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
-                        if (!filter(query.getFilterList(), mdw))
-                            result++;
+                        if (filter(query.getFilterList(), mdw)) continue;
+
+                        result++;
                         break;
                     case PORTABLE_DEVICE:
                         EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
-                        if (!filter(query.getFilterList(), mdp))
-                            result++;
+                        if (filter(query.getFilterList(), mdp)) continue;
+
+                        result++;
                         break;
                 }
             } catch (Throwable t) {
@@ -114,7 +116,7 @@ public final class DeviceMetadataContract implements ContractInterface {
 //            result = noise.addNoise(result, 1, 1, 0.5, 1);
 
         try {
-            return JsonFormat.printer().includingDefaultValueFields().print(CountResult.newBuilder().setResult((int) result).build());
+            return JsonFormat.printer().includingDefaultValueFields().print(CountResult.newBuilder().setResult(result).build());
         } catch (InvalidProtocolBufferException e) {
             return ResponseUtil.error("Error: Could not serialize data");
         }
@@ -136,7 +138,7 @@ public final class DeviceMetadataContract implements ContractInterface {
         var assets = retrieveData(ctx, query.getStartTime(), query.getStopTime(), typeFilter, hospitalFilter);
         Map<String, Integer> result = new HashMap<>();
 
-        logger.info("Assets present, computing count all");
+        logger.info("Assets present, computing count all...");
         int counter = 0;
         for (EncryptedDeviceMetadata asset : assets) {
             logger.info("Asset " + counter++ + ": " + asset.getType().name());
@@ -150,7 +152,8 @@ public final class DeviceMetadataContract implements ContractInterface {
                         fieldValue = (String) mdw.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdw)) continue;
 
-                        if (!result.containsKey(fieldValue)) result.put(fieldValue, 0);
+                        result.put(fieldValue, result.getOrDefault(fieldValue, 0) + 1);
+
                         break;
                     case PORTABLE_DEVICE:
                         EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
@@ -158,7 +161,8 @@ public final class DeviceMetadataContract implements ContractInterface {
                         fieldValue = (String) mdp.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdp)) continue;
 
-                        if (!result.containsKey(fieldValue)) result.put(fieldValue, 0);
+                        result.put(fieldValue, result.getOrDefault(fieldValue, 0) + 1);
+
                         break;
                 }
             } catch (Throwable t) {
@@ -221,7 +225,7 @@ public final class DeviceMetadataContract implements ContractInterface {
         int count = 0;
 
         double aux = 0;
-        logger.info("Assets present, computing average");
+        logger.info("Assets present, computing average...");
         int counter = 0;
         for (EncryptedDeviceMetadata asset : assets) {
             logger.info("Asset " + counter++ + ": " + asset.getType().name());
