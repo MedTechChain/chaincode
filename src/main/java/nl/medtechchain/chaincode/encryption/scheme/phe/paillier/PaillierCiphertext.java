@@ -1,9 +1,9 @@
 package nl.medtechchain.chaincode.encryption.scheme.phe.paillier;
 
 import nl.medtechchain.chaincode.encryption.exception.IllegalOperationException;
-import nl.medtechchain.chaincode.encryption.scheme.phe.protocol.SMP;
 import nl.medtechchain.chaincode.encryption.scheme.Ciphertext;
 import nl.medtechchain.chaincode.encryption.scheme.Plaintext;
+import nl.medtechchain.chaincode.encryption.scheme.phe.protocol.SMP;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -47,7 +47,7 @@ public class PaillierCiphertext implements Ciphertext {
         try {
             other1 = (PaillierCiphertext) other;
             assert encryptionKey.equals(other1.encryptionKey);
-            Ciphertext result =  SMP.instance().mul(this, other1);
+            Ciphertext result = SMP.instance().mul(this, other1);
             assert result instanceof PaillierCiphertext;
             return (PaillierCiphertext) result;
         } catch (ClassCastException | AssertionError e) {

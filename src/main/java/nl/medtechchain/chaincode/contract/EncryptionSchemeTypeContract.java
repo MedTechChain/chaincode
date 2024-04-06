@@ -16,6 +16,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Will be used when integrating Homomorphic Encryption.
+ */
 @Contract(name = "encryption", info = @Info(title = "Encryption Scheme Contract", license = @License(name = "Apache 2.0 License", url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
 public class EncryptionSchemeTypeContract {
     private static final String HOM_ENC_TYPE = "HOM_ENC_TYPE";

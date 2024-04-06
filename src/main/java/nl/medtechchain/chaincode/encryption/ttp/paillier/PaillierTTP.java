@@ -31,13 +31,13 @@ public class PaillierTTP implements TTPInterface {
 
     @Override
     public EncryptionKey getEncryptionKey(EncryptionKeyMetadata encryptionKeyMetadata) throws IOException {
-        // TODO
+        // TODO: Implement communication with TTP to retrieve encryption key
         return null;
     }
 
     @Override
     public Plaintext decrypt(Ciphertext ciphertext) throws IOException {
-        // TODO
+        // TODO: Implement communication with TTP to decrypt data
         return null;
     }
 }

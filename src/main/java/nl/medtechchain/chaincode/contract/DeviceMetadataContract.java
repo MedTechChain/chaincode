@@ -62,7 +62,6 @@ public final class DeviceMetadataContract implements ContractInterface {
             logger.info("Perform " + query.getQueryType().name() + " query");
             switch (query.getQueryType()) {
                 case COUNT:
-
                     return count(ctx, query);
                 case COUNT_ALL:
                     return countAll(ctx, query);
@@ -96,13 +95,11 @@ public final class DeviceMetadataContract implements ContractInterface {
                     case WEARABLE_DEVICE:
                         EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
                         if (filter(query.getFilterList(), mdw)) continue;
-
                         result++;
                         break;
                     case PORTABLE_DEVICE:
                         EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
                         if (filter(query.getFilterList(), mdp)) continue;
-
                         result++;
                         break;
                 }
@@ -148,18 +145,14 @@ public final class DeviceMetadataContract implements ContractInterface {
                         fieldDescriptor = mdw.getDescriptorForType().findFieldByName(query.getField());
                         fieldValue = (String) mdw.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdw)) continue;
-
                         result.put(fieldValue, result.getOrDefault(fieldValue, 0) + 1);
-
                         break;
                     case PORTABLE_DEVICE:
                         EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
                         fieldDescriptor = mdp.getDescriptorForType().findFieldByName(query.getField());
                         fieldValue = (String) mdp.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdp)) continue;
-
                         result.put(fieldValue, result.getOrDefault(fieldValue, 0) + 1);
-
                         break;
                 }
             } catch (Throwable t) {
@@ -175,17 +168,6 @@ public final class DeviceMetadataContract implements ContractInterface {
         } catch (InvalidProtocolBufferException e) {
             return ResponseUtil.error("Error: Could not serialize data");
         }
-    }
-
-    private <T extends GeneratedMessageV3> boolean filter(FilterList fl, T obj) {
-        for (Filter f : fl.getFiltersList()) {
-            Descriptors.FieldDescriptor fieldDescriptor = obj.getDescriptorForType().findFieldByName(f.getField());
-            String fieldValue = (String) obj.getField(fieldDescriptor);
-            if (!Objects.equals(fieldValue, f.getValue())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private String average(Context ctx, Query query) {
@@ -204,7 +186,6 @@ public final class DeviceMetadataContract implements ContractInterface {
         if (typeFilter.size() > 1)
             return ResponseUtil.error("Malformed query: Averaging a field makes sense only for a single type of device!");
 
-
         var assets = retrieveData(ctx, query.getStartTime(), query.getStopTime(), typeFilter, hospitalFilter);
 
         double result = 0;
@@ -215,37 +196,27 @@ public final class DeviceMetadataContract implements ContractInterface {
         for (EncryptedDeviceMetadata asset : assets) {
             try {
                 Descriptors.FieldDescriptor fieldDescriptor;
-                String fieldValue;
+                String fieldValue = "0";
                 switch (asset.getType()) {
                     case WEARABLE_DEVICE:
                         EncryptedWearableDeviceMetadata mdw = EncryptedWearableDeviceMetadata.parseFrom(asset.getRawBytes());
                         fieldDescriptor = mdw.getDescriptorForType().findFieldByName(query.getField());
                         fieldValue = (String) mdw.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdw)) continue;
-
-                        try {
-                            aux = Double.parseDouble(fieldValue);
-                            count++;
-                        } catch (Throwable t) {
-                            aux = 0;
-                        }
                         break;
                     case PORTABLE_DEVICE:
                         EncryptedPortableDeviceMetadata mdp = EncryptedPortableDeviceMetadata.parseFrom(asset.getRawBytes());
                         fieldDescriptor = mdp.getDescriptorForType().findFieldByName(query.getField());
                         fieldValue = (String) mdp.getField(fieldDescriptor);
                         if (filter(query.getFilterList(), mdp)) continue;
-
-                        try {
-                            aux = Double.parseDouble(fieldValue);
-                            count++;
-                        } catch (Throwable t) {
-                            aux = 0;
-                        }
                         break;
                 }
 
-                result += aux;
+                try {
+                    result += Double.parseDouble(fieldValue);
+                    count++;
+                } catch (Throwable ignored) {
+                }
             } catch (Throwable t) {
                 logger.error("Error: " + t.getMessage());
             }
@@ -262,6 +233,17 @@ public final class DeviceMetadataContract implements ContractInterface {
         } catch (InvalidProtocolBufferException e) {
             return ResponseUtil.error("Error: Could not serialize data");
         }
+    }
+
+    private <T extends GeneratedMessageV3> boolean filter(FilterList fl, T obj) {
+        for (Filter f : fl.getFiltersList()) {
+            Descriptors.FieldDescriptor fieldDescriptor = obj.getDescriptorForType().findFieldByName(f.getField());
+            String fieldValue = (String) obj.getField(fieldDescriptor);
+            if (!Objects.equals(fieldValue, f.getValue())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<DeviceType> deviceTypeListFilter(Query query) {
