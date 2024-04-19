@@ -8,7 +8,7 @@
 
 - **`docker/`**: Contains docker entrypoint script for Chaincode as a Service deployment.
 
-- **`libs/`**: Contains external libraries that are not published on an online repository (e.g., medtechchain protos, Google Differential Privacy).
+- **`libs/`**: Contains external libraries that are not published on an online repository (e.g., medtechchain protos).
 
 - **`scripts/`**: Contains utility scripts. If the scripts need to access a different repository (e.g., `tools` or `protos`), the developer can either specify the absolute path to the repo or make sure that this repository and the one needing to be accessed have the same parent directory. It is recommended to place all repositories in a common parent directory.
 

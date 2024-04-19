@@ -109,7 +109,7 @@ public final class DeviceMetadataContract implements ContractInterface {
         }
 
         var noise = new LaplaceNoise();
-        result = (int) noise.addNoise(result, 1, 0.25, 0);
+        result = Math.abs((int) noise.addNoise(result, 1, 0.25, 0));
 
         try {
             return JsonFormat.printer().includingDefaultValueFields().print(CountResult.newBuilder().setResult(result).build());
@@ -161,7 +161,7 @@ public final class DeviceMetadataContract implements ContractInterface {
         }
 
         var noise = new LaplaceNoise();
-        result.replaceAll((k, v) -> (int) noise.addNoise(v, 1, 0.4, 0));
+        result.replaceAll((k, v) -> Math.abs((int) noise.addNoise(v, 1, 0.4, 0)));
 
         try {
             return JsonFormat.printer().includingDefaultValueFields().print(CountAllResult.newBuilder().putAllResult(result).build());
@@ -223,7 +223,7 @@ public final class DeviceMetadataContract implements ContractInterface {
         }
 
         var noise = new LaplaceNoise();
-        result = (int) noise.addNoise(result, 1, 0.1, 0);
+        result = Math.abs((int) noise.addNoise(result, 1, 0.1, 0));
 
         if (count == 0) result = 0;
         else result /= count;

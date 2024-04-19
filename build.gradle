@@ -13,9 +13,8 @@ dependencies {
     implementation 'com.google.protobuf:protobuf-java:3.25.3'
     implementation 'com.google.protobuf:protobuf-java-util:3.25.3'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
+    implementation 'com.google.privacy.differentialprivacy:differentialprivacy:3.0.0'
     implementation ':medtechchain.protos:0.0.1'
-    implementation ':libdifferentialprivacy'
-    implementation ':libsummary-proto-speed'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testImplementation 'org.assertj:assertj-core:3.25.3'
