@@ -32,3 +32,7 @@ but the current development infrastructure is not currently configured to use ex
 This makes development process cumbersome. CaaS might make the development process easier.
 
 The `docker-compose.yaml` specifications (e.g., networks, environment variables) are made to match the infrastructure (e.g., the chaincode should be in the same Docker network as the peers).
+
+openssl req -nodes -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -subj "/C=NL/ST=Zuid-Holland/L=Delft/O=MedTechChain/CN=chaincode.peer0.medtechchain.nl" -addext "subjectAltName=DNS:chaincode.peer0.medtechchain.nl"
+
+awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' key.pem

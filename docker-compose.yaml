@@ -1,34 +1,83 @@
-version: "3.8"
-
 services:
-  medivale-chaincode-dev:
-    container_name: medivale-chaincode-dev
-    image: medtechchain/chaincode-dev
+  chaincode.peer0.medtechchain.nl:
+    container_name: chaincode.peer0.medtechchain.nl
+    image: medtechchain/chaincode
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        HOSPITAL_DOMAIN: medivale.nl
     environment:
-      LOGLEVEL: INFO
-      CHANNEL_NAME: medtechchain
-      CORE_PEER_ADDRESS: peer0.medivale.nl:7051
-      CORE_PEER_LOCALMSPID: MediValePeerMSP
-      CORE_CHAINCODE_ID_NAME: medtechchain
+      CORE_PEER_LOCALMSPID: MedTechChainPeerMSP
+      CORE_PEER_ADDRESS: peer0.medtechchain.nl:7052
+      CORE_CHAINCODE_ID_NAME: medtechchain_1.0.0:d15d363c44d027648dbb1ded83b80192f99cda393318557fe47a43381102b224
       CHAINCODE_SERVER_ADDRESS: 0.0.0.0:9999
-      CORE_PEER_TLS_ENABLED: "true"
-      CORE_PEER_TLS_ROOTCERT_FILE: /crypto/medivale.nl/tls/ca.crt
-      CORE_TLS_CLIENT_KEY_PATH: /crypto/medivale.nl/msp/keystore
-      CORE_TLS_CLIENT_KEY_FILE: /crypto/medivale.nl/msp/keystore/priv_sk
-      CORE_TLS_CLIENT_CERT_PATH: /crypto/medivale.nl/msp/signcerts
-      CORE_TLS_CLIENT_CERT_FILE: /crypto/medivale.nl/msp/signcerts/User1@medivale.nl-cert.pem
+      CORE_PEER_TLS_ENABLED: true
+      CORE_PEER_TLS_ROOTCERT_FILE: /crypto/cert.pem
+      CORE_TLS_CLIENT_KEY_PATH: /crypto/key.pem.b64
+      CORE_TLS_CLIENT_KEY_FILE: /crypto/key.pem
+      CORE_TLS_CLIENT_CERT_PATH: /crypto/cert.pem.b64
+      CORE_TLS_CLIENT_CERT_FILE: /crypto/cert.pem
     ports:
-      - "9999:9999"
-      - "8001:8000"
+      - "8061:9999"
     networks:
-      - medivale
+      - medtechchain
+    volumes:
+      - ./crypto/peer0.medtechchain.nl:/crypto
+
+  chaincode.peer0.healpoint.nl:
+    container_name: chaincode.peer0.healpoint.nl
+    image: medtechchain/chaincode
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      CORE_PEER_LOCALMSPID: HealPointPeerMSP
+      CORE_PEER_ADDRESS: peer0.healpoint.nl:7052
+      CORE_CHAINCODE_ID_NAME: medtechchain_1.0.0:d15d363c44d027648dbb1ded83b80192f99cda393318557fe47a43381102b224
+      CHAINCODE_SERVER_ADDRESS: 0.0.0.0:9999
+      CORE_PEER_TLS_ENABLED: true
+      CORE_PEER_TLS_ROOTCERT_FILE: /crypto/cert.pem
+      CORE_TLS_CLIENT_KEY_PATH: /crypto/key.pem.b64
+      CORE_TLS_CLIENT_KEY_FILE: /crypto/key.pem
+      CORE_TLS_CLIENT_CERT_PATH: /crypto/cert.pem.b64
+      CORE_TLS_CLIENT_CERT_FILE: /crypto/cert.pem
+    ports:
+      - "9061:9999"
+    networks:
+      - healpoint
+    volumes:
+      - ./crypto/peer0.healpoint.nl:/crypto
+
+  chaincode.peer0.lifecare.nl:
+    container_name: chaincode.peer0.lifecare.nl
+    image: medtechchain/chaincode
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      CORE_PEER_LOCALMSPID: LifeCarePeerMSP
+      CORE_PEER_ADDRESS: peer0.lifecare.nl:7052
+      CORE_CHAINCODE_ID_NAME: medtechchain_1.0.0:d15d363c44d027648dbb1ded83b80192f99cda393318557fe47a43381102b224
+      CHAINCODE_SERVER_ADDRESS: 0.0.0.0:9999
+      CORE_PEER_TLS_ENABLED: true
+      CORE_PEER_TLS_ROOTCERT_FILE: /crypto/cert.pem
+      CORE_TLS_CLIENT_KEY_PATH: /crypto/key.pem.b64
+      CORE_TLS_CLIENT_KEY_FILE: /crypto/key.pem
+      CORE_TLS_CLIENT_CERT_PATH: /crypto/cert.pem.b64
+      CORE_TLS_CLIENT_CERT_FILE: /crypto/cert.pem
+    ports:
+      - "10061:9999"
+    networks:
+      - lifecare
+    volumes:
+      - ./crypto/peer0.lifecare.nl:/crypto
 
 networks:
-  medivale:
+  medtechchain:
     external: true
-    name: medivale
+    name: medtechchain
+  healpoint:
+    external: true
+    name: healpoint
+  lifecare:
+    external: true
+    name: lifecare
