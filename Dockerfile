@@ -1,4 +1,4 @@
-FROM gradle:8.6-jdk11 as builder
+FROM gradle:8.6-jdk11 AS builder
 
 COPY --chown=gradle:gradle . /home/gradle/src
 
