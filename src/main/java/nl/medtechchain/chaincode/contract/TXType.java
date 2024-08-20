@@ -1,4 +1,4 @@
-package nl.medtechchain.chaincode.contract.util;
+package nl.medtechchain.chaincode.contract;
 
 public enum TXType {
     DEVICE_DATA_ASSET,

@@ -1,15 +1,15 @@
-package nl.medtechchain.chaincode.contract.util;
+package nl.medtechchain.chaincode.service;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
-import nl.medtechchain.chaincode.contract.PlatformConfigContract;
-import nl.medtechchain.proto.devicedata.DeviceDataTransaction;
+import nl.medtechchain.chaincode.util.ConfigUtil;
+import nl.medtechchain.proto.devicedata.DeviceDataAsset;
 import nl.medtechchain.proto.query.Filter;
 
-import static nl.medtechchain.chaincode.contract.PlatformConfigContract.encryptionEnabled;
+import static nl.medtechchain.chaincode.util.ConfigUtil.encryptionEnabled;
 
 public class FilterChecker {
-    public static boolean checkFilter(DeviceDataTransaction asset, Filter filter) {
+    public static boolean checkFilter(DeviceDataAsset asset, Filter filter) {
         switch (filter.getFilterTypeCase()) {
             case INT_FILTER:
                 return checkInt(asset, filter.getIntFilter());
@@ -24,15 +24,15 @@ public class FilterChecker {
         return false;
     }
 
-    public static boolean checkEncryption(DeviceDataTransaction asset) {
-        String currentEncryptionVersion = PlatformConfigContract.getEncryptionVersion();
-        boolean encryptionEnabled = encryptionEnabled();
+    public static boolean checkEncryption(DeviceDataAsset asset) {
+        var currentEncryptionVersion = ConfigUtil.encryptionVersion();
+        boolean encryptionEnabled = currentEncryptionVersion.isPresent();
         return !(!asset.hasEncryptionVersion() && encryptionEnabled ||
                 asset.hasEncryptionVersion() && !encryptionEnabled ||
-                asset.hasEncryptionVersion() && !asset.getEncryptionVersion().equals(currentEncryptionVersion));
+                asset.hasEncryptionVersion() && !asset.getEncryptionVersion().equals(currentEncryptionVersion.get()));
     }
 
-    private static boolean checkInt(DeviceDataTransaction asset, Filter.IntFilter intFilter) {
+    private static boolean checkInt(DeviceDataAsset asset, Filter.IntFilter intFilter) {
         String value = fieldValue(asset, intFilter.getField());
 
         if (encryptionEnabled()) {
@@ -61,7 +61,7 @@ public class FilterChecker {
         }
     }
 
-    private static boolean checkString(DeviceDataTransaction asset, Filter.StringFilter stringFilter) {
+    private static boolean checkString(DeviceDataAsset asset, Filter.StringFilter stringFilter) {
         String value = fieldValue(asset, stringFilter.getField());
 
         if (encryptionEnabled()) {
@@ -82,7 +82,7 @@ public class FilterChecker {
         }
     }
 
-    private static boolean checkBool(DeviceDataTransaction asset, Filter.BoolFilter boolFilter) {
+    private static boolean checkBool(DeviceDataAsset asset, Filter.BoolFilter boolFilter) {
         String value = fieldValue(asset, boolFilter.getField());
 
         if (encryptionEnabled()) {
@@ -102,7 +102,7 @@ public class FilterChecker {
         }
     }
 
-    private static boolean checkTimestamp(DeviceDataTransaction asset, Filter.TimestampFilter timestampFilter) {
+    private static boolean checkTimestamp(DeviceDataAsset asset, Filter.TimestampFilter timestampFilter) {
         String value = fieldValue(asset, timestampFilter.getField());
 
         if (encryptionEnabled()) {
@@ -127,7 +127,7 @@ public class FilterChecker {
         }
     }
 
-    private static String fieldValue(DeviceDataTransaction asset, String fieldName) {
-        return (String) asset.getField(DeviceDataTransaction.getDescriptor().findFieldByName(fieldName));
+    private static String fieldValue(DeviceDataAsset asset, String fieldName) {
+        return (String) asset.getField(DeviceDataAsset.getDescriptor().findFieldByName(fieldName));
     }
 }
