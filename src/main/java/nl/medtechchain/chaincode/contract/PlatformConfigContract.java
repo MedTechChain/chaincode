@@ -1,9 +1,8 @@
 package nl.medtechchain.chaincode.contract;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import nl.medtechchain.chaincode.service.PaillierTTPService;
+import nl.medtechchain.chaincode.service.ttp.PaillierTTPService;
 import nl.medtechchain.chaincode.util.ConfigUtil;
-import nl.medtechchain.proto.common.ChaincodeError.ErrorCode;
 import nl.medtechchain.proto.config.EncryptionConfig;
 import nl.medtechchain.proto.config.PlatformConfig;
 import nl.medtechchain.proto.config.ReadPlatformConfigResponse;
@@ -14,13 +13,14 @@ import org.hyperledger.fabric.contract.annotation.Contract;
 import org.hyperledger.fabric.contract.annotation.Info;
 import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
-import org.hyperledger.fabric.shim.ChaincodeStub;
 
 import java.util.Base64;
 
+import static nl.medtechchain.chaincode.util.ChaincodeResponseUtil.invalidTransaction;
+import static nl.medtechchain.chaincode.util.ChaincodeResponseUtil.successResponse;
 import static nl.medtechchain.chaincode.util.ConfigUtil.*;
-import static nl.medtechchain.chaincode.util.ResponseUtil.errorResponse;
-import static nl.medtechchain.chaincode.util.ResponseUtil.successResponse;
+import static nl.medtechchain.chaincode.util.EncodingUtil.decode64;
+import static nl.medtechchain.chaincode.util.EncodingUtil.encode64;
 
 @Contract(name = "platformconfig", info = @Info(title = "Platform Config Contract", license = @License(name = "Apache 2.0 License", url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
 public final class PlatformConfigContract implements ContractInterface {
@@ -29,17 +29,7 @@ public final class PlatformConfigContract implements ContractInterface {
 
     private static final String PLATFORM_CONFIG_KEY = "PLATFORM_CONFIG_KEY";
 
-    private static PlatformConfig platformConfig = defaultPlatformConfig();
-
-    @Override
-    public Context createContext(ChaincodeStub stub) {
-        try {
-            platformConfig = PlatformConfig.parseFrom(stub.getState(PLATFORM_CONFIG_KEY));
-        } catch (InvalidProtocolBufferException e) {
-            platformConfig = defaultPlatformConfig();
-        }
-        return ContractInterface.super.createContext(stub);
-    }
+    private static PlatformConfig platformConfig;
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void Init(Context ctx) {
@@ -64,21 +54,21 @@ public final class PlatformConfigContract implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public String SetPlatformConfig(Context ctx, String transaction) {
         try {
-            var tx = PlatformConfig.parseFrom(Base64.getDecoder().decode(transaction));
+            var tx = decode64(transaction, PlatformConfig::parseFrom);
             ctx.getStub().putStringState(PLATFORM_CONFIG_KEY, transaction);
             platformConfig = tx;
             logger.info("Updated platform config: " + tx);
-            return successResponse("Platform config updated successfully");
+            return encode64(successResponse("Platform config updated successfully"));
         } catch (InvalidProtocolBufferException e) {
             logger.warning("Failed to parse write platform config transaction: " + e.getMessage());
-            return errorResponse(ErrorCode.ERROR_CODE_INVALID_ARGUMENT, "Error parsing write platform config transaction", e.toString());
+            return encode64(invalidTransaction("Error parsing write platform config transaction", e.toString()));
         }
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String GetPlatformConfig(Context ctx) {
         try {
-            var platformConfig = PlatformConfig.parseFrom(Base64.getDecoder().decode(ctx.getStub().getStringState(PLATFORM_CONFIG_KEY)));
+            var platformConfig = decode64(ctx.getStub().getStringState(PLATFORM_CONFIG_KEY), PlatformConfig::parseFrom);
             PlatformConfigContract.platformConfig = platformConfig;
             var response = ReadPlatformConfigResponse
                     .newBuilder()
@@ -88,10 +78,10 @@ public final class PlatformConfigContract implements ContractInterface {
             if (encryptionVersion().isPresent())
                 response = response.toBuilder().setEncryptionVersion(encryptionVersion().get()).build();
 
-            return Base64.getEncoder().encodeToString(response.toByteArray());
+            return encode64(response);
         } catch (InvalidProtocolBufferException e) {
             logger.warning("Failed to parse write platform config transaction: " + e.getMessage());
-            return errorResponse(ErrorCode.ERROR_CODE_INVALID_ARGUMENT, "Error parsing read platform config transaction", e.toString());
+            return encode64(invalidTransaction("Error parsing read platform config transaction", e.toString()));
         }
     }
 

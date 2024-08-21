@@ -1,9 +1,10 @@
-package nl.medtechchain.chaincode.service;
+package nl.medtechchain.chaincode.service.ttp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import nl.medtechchain.chaincode.service.dto.PaillierDecryptRequest;
-import nl.medtechchain.chaincode.service.dto.PaillierDecryptResponse;
-import nl.medtechchain.chaincode.service.dto.PaillierEncryptionKeyResponse;
+import nl.medtechchain.chaincode.service.ttp.dto.PaillierDecryptRequest;
+import nl.medtechchain.chaincode.service.ttp.dto.PaillierDecryptResponse;
+import nl.medtechchain.chaincode.service.ttp.dto.PaillierEncryptionKeyResponse;
+import nl.medtechchain.chaincode.util.ConfigUtil;
 
 import java.net.URI;
 import java.net.http.HttpClient;

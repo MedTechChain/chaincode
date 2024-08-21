@@ -1,13 +1,12 @@
 package nl.medtechchain.chaincode.contract;
 
-import com.google.privacy.differentialprivacy.LaplaceNoise;
 import com.google.protobuf.InvalidProtocolBufferException;
-import nl.medtechchain.chaincode.service.FilterChecker;
-import nl.medtechchain.proto.common.ChaincodeError.ErrorCode;
+import nl.medtechchain.chaincode.service.query.FilterService;
+import nl.medtechchain.chaincode.service.query.InputValidatorService;
+import nl.medtechchain.chaincode.service.query.QueryService;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
 import nl.medtechchain.proto.query.Query;
 import nl.medtechchain.proto.query.QueryAsset;
-import nl.medtechchain.proto.query.QueryResult;
 import org.hyperledger.fabric.Logger;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
@@ -20,8 +19,10 @@ import org.hyperledger.fabric.shim.ledger.KeyValue;
 
 import java.util.*;
 
-import static nl.medtechchain.chaincode.util.ConfigUtil.differentialPrivacyConfig;
-import static nl.medtechchain.chaincode.util.ResponseUtil.*;
+import static nl.medtechchain.chaincode.util.ChaincodeResponseUtil.*;
+import static nl.medtechchain.chaincode.util.EncodingUtil.decode64;
+import static nl.medtechchain.chaincode.util.EncodingUtil.encode64;
+import static nl.medtechchain.chaincode.util.MeasureExecTimeUtil.monitorTime;
 
 @Contract(name = "devicedata", info = @Info(title = "Device Data Contract", license = @License(name = "Apache 2.0 License", url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
 public final class DeviceDataContract implements ContractInterface {
@@ -33,14 +34,14 @@ public final class DeviceDataContract implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public String StoreDeviceData(Context ctx, String id, String transaction) {
         try {
-            DeviceDataAsset.parseFrom(Base64.getDecoder().decode(transaction));
+            decode64(transaction, DeviceDataAsset::parseFrom);
             var key = compositeKey(ctx, TXType.DEVICE_DATA_ASSET, id);
             ctx.getStub().putStringState(key.toString(), transaction);
             logger.debug("Stored device data asset: " + key);
-            return successResponse("Device data asset stored successfully");
+            return encode64(successResponse("Device data asset stored successfully"));
         } catch (InvalidProtocolBufferException e) {
             logger.warning("Failed to parse device data asset: " + e.getMessage());
-            return errorResponse(ErrorCode.ERROR_CODE_INVALID_ARGUMENT, "Error parsing device data transaction", e.toString());
+            return encode64(invalidTransaction("Error parsing device data transaction", e.toString()));
         }
     }
 
@@ -62,69 +63,27 @@ public final class DeviceDataContract implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String Query(Context ctx, String transaction) {
         try {
-            var tx = Query.parseFrom(Base64.getDecoder().decode(transaction));
+            var tx = decode64(transaction, Query::parseFrom);
 
-            var result = unrecognizedQueryResult();
+            var error = InputValidatorService.validateQueryFilters(tx);
+            if (error.isPresent())
+                return encode64(errorResponse(error.get()));
 
             logger.info("Performing: " + tx);
-            var startTime = System.nanoTime();
 
-            switch (tx.getQueryType()) {
-                case QUERY_TYPE_COUNT:
-                    result = count(ctx, tx);
-                    break;
-                case QUERY_TYPE_GROUPED_COUNT:
-                    result = groupedCount(ctx, tx);
-                    break;
-                case QUERY_TYPE_AVERAGE:
-                    result = average(ctx, tx);
-                    break;
-            }
-
-            var endTime = System.nanoTime();
-            var executionTime = endTime - startTime;
-            logger.info("Query execution time: " + executionTime);
+            var result = monitorTime(() -> QueryService.executeQuery(tx));
 
             var asset = QueryAsset.newBuilder().setQuery(tx).setResult(result).build();
             var key = compositeKey(ctx, TXType.QUERY, UUID.nameUUIDFromBytes(asset.toByteArray()).toString());
-            ctx.getStub().putStringState(key.toString(), Base64.getEncoder().encodeToString(asset.toByteArray()));
+            ctx.getStub().putStringState(key.toString(), encode64(asset));
 
-            return Base64.getEncoder().encodeToString(result.toByteArray());
+            return encode64(result);
         } catch (InvalidProtocolBufferException e) {
             logger.warning("Failed to parse query transaction: " + e.getMessage());
-            return errorResponse(ErrorCode.ERROR_CODE_INVALID_ARGUMENT, "Error parsing query transaction", e.toString());
+            return encode64(invalidTransaction("Error parsing query transaction", e.toString()));
         }
     }
 
-    // TODO: Handle encryption
-    private QueryResult count(Context ctx, Query tx) {
-        var assets = getFilteredData(ctx, tx);
-        var resultCount = assets.size();
-        var differentialPrivacyConfig = differentialPrivacyConfig();
-        switch (differentialPrivacyConfig.getMechanismCase()) {
-            case LAPLACE:
-                var laplaceConfig = differentialPrivacyConfig.getLaplace();
-                resultCount = Math.abs((int) new LaplaceNoise().addNoise(resultCount, computeL1Sensitivity(tx), laplaceConfig.getEpsilon(), 0));
-                break;
-        }
-        return QueryResult.newBuilder().setCountResult(resultCount).build();
-    }
-
-    // TODO: Handle encryption
-    private QueryResult groupedCount(Context ctx, Query tx) {
-        return null;
-    }
-
-    // TODO: Handle encryption
-    private QueryResult average(Context ctx, Query tx) {
-        return null;
-    }
-
-    // Sensitivity depends on the queried type and queried data
-    // For now, its value will be defaulted to 1
-    private long computeL1Sensitivity(Query tx) {
-        return 1;
-    }
 
     private List<DeviceDataAsset> getFilteredData(Context ctx, Query tx) {
         var filteredDeviceData = new ArrayList<DeviceDataAsset>();
@@ -133,10 +92,10 @@ public final class DeviceDataContract implements ContractInterface {
 
         for (KeyValue kv : iterator) {
             try {
-                DeviceDataAsset asset = DeviceDataAsset.parseFrom(Base64.getDecoder().decode(kv.getValue()));
+                DeviceDataAsset asset = decode64(kv.getStringValue(), DeviceDataAsset::parseFrom);
 
-                boolean valid = FilterChecker.checkEncryption(asset) &&
-                        tx.getFiltersList().stream().allMatch(filter -> FilterChecker.checkFilter(asset, filter));
+                boolean valid = FilterService.checkEncryption(asset) &&
+                        tx.getFiltersList().stream().allMatch(filter -> FilterService.checkFilter(asset, filter));
 
                 if (valid)
                     filteredDeviceData.add(asset);

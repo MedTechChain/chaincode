@@ -1,4 +1,4 @@
-package nl.medtechchain.chaincode.service.dto;
+package nl.medtechchain.chaincode.service.ttp.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class PaillierDecryptRequest {
+public class PaillierEncryptionKeyResponse {
     private String encryptionKey;
-    private String ciphertext;
 }
