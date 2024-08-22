@@ -40,7 +40,7 @@ public final class PlatformConfigContract implements ContractInterface {
 
         if (keyOpt.isPresent()) {
             var paillierConfig = EncryptionConfig.Paillier.newBuilder()
-                    .setBiTLength(ConfigUtil.EncryptionConstants.BIT_LENGTH)
+                    .setBitLength(ConfigUtil.EncryptionConstants.BIT_LENGTH)
                     .setPublicKey(keyOpt.get())
                     .setTrustedThirdPartyAddress(ConfigUtil.EncryptionConstants.TTP_ADDRESS)
                     .build();

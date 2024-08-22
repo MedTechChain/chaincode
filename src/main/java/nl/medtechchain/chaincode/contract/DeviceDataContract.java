@@ -2,11 +2,11 @@ package nl.medtechchain.chaincode.contract;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import nl.medtechchain.chaincode.service.query.FilterService;
-import nl.medtechchain.chaincode.service.query.InputValidatorService;
 import nl.medtechchain.chaincode.service.query.QueryService;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
 import nl.medtechchain.proto.query.Query;
 import nl.medtechchain.proto.query.QueryAsset;
+import nl.medtechchain.proto.query.QueryResult;
 import org.hyperledger.fabric.Logger;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
@@ -28,8 +28,11 @@ import static nl.medtechchain.chaincode.util.MeasureExecTimeUtil.monitorTime;
 public final class DeviceDataContract implements ContractInterface {
 
     private static final Logger logger = Logger.getLogger(DeviceDataContract.class);
-
     private static final String INDEX = "TX_ID_";
+
+    private final FilterService filterService = new FilterService();
+    private final QueryService queryService = new QueryService();
+
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public String StoreDeviceData(Context ctx, String id, String transaction) {
@@ -60,18 +63,41 @@ public final class DeviceDataContract implements ContractInterface {
         logger.info(asset.toString());
     }
 
+
+
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String Query(Context ctx, String transaction) {
         try {
             var tx = decode64(transaction, Query::parseFrom);
 
-            var error = InputValidatorService.validateQueryFilters(tx);
+            var error = queryService.validateQuery(tx);
             if (error.isPresent())
                 return encode64(errorResponse(error.get()));
 
             logger.info("Performing: " + tx);
 
-            var result = monitorTime(() -> QueryService.executeQuery(tx));
+            var result = monitorTime(() -> {
+                var data = getFilteredData(ctx, tx);
+                var r = QueryResult.newBuilder().setError(invalidTransaction("Unknown query type").getError()).build();
+                try {
+                    switch (tx.getQueryType()) {
+                        case QUERY_TYPE_COUNT:
+                            r = queryService.count(tx, data);
+                            break;
+                        case QUERY_TYPE_GROUPED_COUNT:
+                            r = queryService.groupedCount(tx, data);
+                            break;
+                        case QUERY_TYPE_AVERAGE:
+                            r = queryService.average(tx, data);
+                            break;
+                    }
+                } catch (Throwable t) {
+                    logger.warning(t.toString());
+                    return QueryResult.newBuilder().setError(internalError("Error running query", t.toString()).getError()).build();
+                }
+
+                return r;
+            });
 
             var asset = QueryAsset.newBuilder().setQuery(tx).setResult(result).build();
             var key = compositeKey(ctx, TXType.QUERY, UUID.nameUUIDFromBytes(asset.toByteArray()).toString());
@@ -84,18 +110,17 @@ public final class DeviceDataContract implements ContractInterface {
         }
     }
 
-
     private List<DeviceDataAsset> getFilteredData(Context ctx, Query tx) {
         var filteredDeviceData = new ArrayList<DeviceDataAsset>();
 
-        var iterator = ctx.getStub().getStateByPartialCompositeKey(ctx.getStub().createCompositeKey(INDEX, TXType.DEVICE_DATA_ASSET.name()));
+        var iterator = ctx.getStub().getStateByPartialCompositeKey(ctx.getStub().createCompositeKey(DeviceDataContract.INDEX, TXType.DEVICE_DATA_ASSET.name()));
 
         for (KeyValue kv : iterator) {
             try {
                 DeviceDataAsset asset = decode64(kv.getStringValue(), DeviceDataAsset::parseFrom);
 
-                boolean valid = FilterService.checkEncryption(asset) &&
-                        tx.getFiltersList().stream().allMatch(filter -> FilterService.checkFilter(asset, filter));
+                boolean valid = filterService.checkEncryptionConfig(asset) &&
+                        tx.getFiltersList().stream().allMatch(filter -> filterService.checkFilter(asset, filter));
 
                 if (valid)
                     filteredDeviceData.add(asset);
@@ -107,6 +132,7 @@ public final class DeviceDataContract implements ContractInterface {
 
         return filteredDeviceData;
     }
+
 
     private CompositeKey compositeKey(Context ctx, TXType txType, String id) {
         return ctx.getStub().createCompositeKey(INDEX, txType.name(), id);

@@ -3,6 +3,8 @@ package nl.medtechchain.chaincode.service.query;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.JsonFormat;
 import lombok.SneakyThrows;
+import nl.medtechchain.chaincode.service.query.util.FieldUtil;
+import nl.medtechchain.chaincode.util.ConfigUtil;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
 import nl.medtechchain.proto.query.Filter;
 
@@ -19,14 +21,24 @@ public class FilterService {
     private static final Logger logger = Logger.getLogger(FilterService.class.getName());
 
     private final DecryptionService decryptionService = new DecryptionService();
+    private final FieldUtil fieldUtil = new FieldUtil();
+
+    public boolean checkEncryptionConfig(DeviceDataAsset asset) {
+        var currentEncryptionVersion = ConfigUtil.encryptionVersion();
+        boolean encryptionEnabled = currentEncryptionVersion.isPresent();
+        return !(!asset.hasEncryptionVersion() && encryptionEnabled ||
+                asset.hasEncryptionVersion() && !encryptionEnabled ||
+                asset.hasEncryptionVersion() && !asset.getEncryptionVersion().equals(currentEncryptionVersion.get()));
+    }
+
 
     public boolean checkFilter(DeviceDataAsset asset, Filter filter) {
         try {
             var fieldName = filter.getField();
 
-            if (isPlainField(fieldName))
+            if (fieldUtil.isPlainField(fieldName))
                 return checkPlainField(asset, filter);
-            else if (isSensitiveField(fieldName))
+            else if (fieldUtil.isSensitiveField(fieldName))
                 if (encryptionEnabled())
                     return checkSensitiveEncryptedField(asset, filter);
                 else
@@ -42,18 +54,18 @@ public class FilterService {
     }
 
     private boolean checkPlainField(DeviceDataAsset asset, Filter filter) {
-        Object fieldValue = extractPlainFieldValue(asset, filter.getField());
+        Object fieldValue = fieldUtil.extractPlainFieldValue(asset, filter.getField());
         return applyFilter(fieldValue, filter);
     }
 
     private boolean checkSensitiveStringField(DeviceDataAsset asset, Filter filter) {
-        String value = extractSensitiveFieldValue(asset, filter.getField());
+        String value = fieldUtil.extractSensitiveFieldValue(asset, filter.getField());
         return applyFilter(parseSensitiveStringValue(value, filter), filter);
     }
 
 
     private boolean checkSensitiveEncryptedField(DeviceDataAsset asset, Filter filter) {
-        String encryptedValue = extractSensitiveFieldValue(asset, filter.getField());
+        String encryptedValue = fieldUtil.extractSensitiveFieldValue(asset, filter.getField());
         Optional<String> plaintext = decryptionService.decrypt(encryptedValue);
         return plaintext.map(value -> applyFilter(parseSensitiveEncryptedValue(value, filter), filter)).orElse(false);
     }
@@ -158,23 +170,5 @@ public class FilterService {
                 return value.getNanos() == timestampFilter.getValue().getNanos();
         }
         return false;
-    }
-
-    private String extractSensitiveFieldValue(DeviceDataAsset asset, String field) {
-        var descriptor = DeviceDataAsset.SensitiveDeviceData.getDescriptor().findFieldByName(field);
-        return (String) asset.getSensitiveDeviceData().getField(descriptor);
-    }
-
-    private <T> T extractPlainFieldValue(DeviceDataAsset asset, String field) {
-        var descriptor = DeviceDataAsset.PlainDeviceData.getDescriptor().findFieldByName(field);
-        return (T) asset.getPlainDeviceData().getField(descriptor);
-    }
-
-    private boolean isPlainField(String fieldName) {
-        return DeviceDataAsset.PlainDeviceData.getDescriptor().getFields().stream().anyMatch(f -> f.getName().equals(fieldName));
-    }
-
-    private boolean isSensitiveField(String fieldName) {
-        return DeviceDataAsset.SensitiveDeviceData.getDescriptor().getFields().stream().anyMatch(f -> f.getName().equals(fieldName));
     }
 }
