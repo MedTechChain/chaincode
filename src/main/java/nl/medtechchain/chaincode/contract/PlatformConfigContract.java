@@ -1,11 +1,12 @@
 package nl.medtechchain.chaincode.contract;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import nl.medtechchain.chaincode.service.ttp.PaillierTTPService;
-import nl.medtechchain.chaincode.util.ConfigUtil;
-import nl.medtechchain.proto.config.EncryptionConfig;
+import nl.medtechchain.chaincode.config.ConfigOps;
+import nl.medtechchain.proto.config.NetworkConfig;
 import nl.medtechchain.proto.config.PlatformConfig;
-import nl.medtechchain.proto.config.ReadPlatformConfigResponse;
+import nl.medtechchain.proto.config.UpdateNetworkConfig;
+import nl.medtechchain.proto.config.UpdatePlatformConfig;
+import nl.medtechchain.proto.devicedata.DeviceDataAsset;
 import org.hyperledger.fabric.Logger;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
@@ -14,78 +15,124 @@ import org.hyperledger.fabric.contract.annotation.Info;
 import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
 
-import java.util.Base64;
+import java.util.stream.Collectors;
 
+import static nl.medtechchain.chaincode.config.ConfigDefaults.NetworkDefaults;
+import static nl.medtechchain.chaincode.config.ConfigDefaults.PlatformConfigDefaults;
+import static nl.medtechchain.chaincode.util.Base64EncodingOps.decode64;
+import static nl.medtechchain.chaincode.util.Base64EncodingOps.encode64;
 import static nl.medtechchain.chaincode.util.ChaincodeResponseUtil.invalidTransaction;
 import static nl.medtechchain.chaincode.util.ChaincodeResponseUtil.successResponse;
-import static nl.medtechchain.chaincode.util.ConfigUtil.*;
-import static nl.medtechchain.chaincode.util.EncodingUtil.decode64;
-import static nl.medtechchain.chaincode.util.EncodingUtil.encode64;
 
 @Contract(name = "platformconfig", info = @Info(title = "Platform Config Contract", license = @License(name = "Apache 2.0 License", url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
 public final class PlatformConfigContract implements ContractInterface {
 
     private static final Logger logger = Logger.getLogger(PlatformConfigContract.class);
 
-    private static final String PLATFORM_CONFIG_KEY = "PLATFORM_CONFIG_KEY";
+    private static final String CURRENT_NETWORK_CONFIG_KEY = "CURRENT_NETWORK_CONFIG";
+    private static final String CURRENT_PLATFORM_CONFIG_KEY = "CURRENT_PLATFORM_CONFIG";
 
-    private static PlatformConfig platformConfig;
+    public static NetworkConfig currentNetworkConfig(Context ctx) throws InvalidProtocolBufferException {
+        return decode64(ctx.getStub().getStringState(CURRENT_NETWORK_CONFIG_KEY), NetworkConfig::parseFrom);
+    }
 
-    @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public void Init(Context ctx) {
-        var platformConfig = defaultPlatformConfig();
-
-        var ttpService = new PaillierTTPService(ConfigUtil.EncryptionConstants.TTP_ADDRESS);
-        var keyOpt = ttpService.getEncryptionKey(ConfigUtil.EncryptionConstants.BIT_LENGTH);
-
-        if (keyOpt.isPresent()) {
-            var paillierConfig = EncryptionConfig.Paillier.newBuilder()
-                    .setBitLength(ConfigUtil.EncryptionConstants.BIT_LENGTH)
-                    .setPublicKey(keyOpt.get())
-                    .setTrustedThirdPartyAddress(ConfigUtil.EncryptionConstants.TTP_ADDRESS)
-                    .build();
-
-            platformConfig = setPaillier(platformConfig, paillierConfig);
-        }
-
-        var ignored = SetPlatformConfig(ctx, Base64.getEncoder().encodeToString(platformConfig.toByteArray()));
+    public static PlatformConfig currentPlatformConfig(Context ctx) throws InvalidProtocolBufferException {
+        return decode64(ctx.getStub().getStringState(CURRENT_PLATFORM_CONFIG_KEY), PlatformConfig::parseFrom);
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public String SetPlatformConfig(Context ctx, String transaction) {
+    public void Init(Context ctx) {
+        var initNetworkConfig = NetworkDefaults.defaultNetworkConfig();
+        storeNetworkConfig(ctx, initNetworkConfig);
+
+        var initPlatformConfig = ConfigOps.PlatformConfigOps.create(PlatformConfigDefaults.defaultPlatformConfigs());
+        storePlatformConfig(ctx, initPlatformConfig);
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public String UpdateNetworkConfig(Context ctx, String transaction) {
         try {
-            var tx = decode64(transaction, PlatformConfig::parseFrom);
-            ctx.getStub().putStringState(PLATFORM_CONFIG_KEY, transaction);
-            platformConfig = tx;
-            logger.info("Updated platform config: " + tx);
-            return encode64(successResponse("Platform config updated successfully"));
+            var update = decode64(transaction, UpdateNetworkConfig::parseFrom);
+            var current = currentNetworkConfig(ctx);
+            storeNetworkConfig(ctx, ConfigOps.NetworkConfigOps.update(current, update.getName(), update.getMapList()));
+            logger.info("Updated network config: " + update);
+            return encode64(successResponse(transaction));
         } catch (InvalidProtocolBufferException e) {
-            logger.warning("Failed to parse write platform config transaction: " + e.getMessage());
-            return encode64(invalidTransaction("Error parsing write platform config transaction", e.toString()));
+            logger.warning("Failed to parse NetworkConfig: " + e.getMessage());
+            return encode64(invalidTransaction("Failed to parse NetworkConfig: " + e.getMessage()));
+        }
+    }
+
+    public static void main(String[] args) {
+        System.out.println(DeviceDataAsset.DeviceData.getDescriptor().getFields().stream().map(d -> d.getMessageType().getFullName()).collect(Collectors.toList()));
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public String UpdatePlatformConfig(Context ctx, String transaction) {
+        try {
+            var update = decode64(transaction, UpdatePlatformConfig::parseFrom);
+            var current = currentPlatformConfig(ctx);
+            storePlatformConfig(ctx, ConfigOps.PlatformConfigOps.update(current, update.getMapList()));
+            logger.info("Updated platform config: " + update);
+            return encode64(successResponse(transaction));
+        } catch (InvalidProtocolBufferException e) {
+            logger.warning("Failed to parse PlatformConfig: " + e.getMessage());
+            return encode64(invalidTransaction("Failed to parse PlatformConfig: " + e.getMessage()));
+        }
+    }
+
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public String GetNetworkConfig(Context ctx) {
+        try {
+            var platformConfig = currentNetworkConfig(ctx);
+            return encode64(platformConfig);
+        } catch (InvalidProtocolBufferException e) {
+            logger.warning("Failed to parse NetworkConfig: " + e.getMessage());
+            return encode64(invalidTransaction("Failed to parse NetworkConfig: " + e.getMessage()));
+        }
+    }
+
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public String GetNetworkConfig(Context ctx, String id) {
+        try {
+            var platformConfig = decode64(ctx.getStub().getStringState(TXType.NETWORK_CONFIG.compositeKey(id).toString()), NetworkConfig::parseFrom);
+            return encode64(platformConfig);
+        } catch (InvalidProtocolBufferException e) {
+            logger.warning("Failed to parse NetworkConfig: " + e.getMessage());
+            return encode64(invalidTransaction("Failed to parse NetworkConfig: " + e.getMessage()));
         }
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String GetPlatformConfig(Context ctx) {
         try {
-            var platformConfig = decode64(ctx.getStub().getStringState(PLATFORM_CONFIG_KEY), PlatformConfig::parseFrom);
-            PlatformConfigContract.platformConfig = platformConfig;
-            var response = ReadPlatformConfigResponse
-                    .newBuilder()
-                    .setPlatformConfig(platformConfig)
-                    .build();
-
-            if (encryptionVersion().isPresent())
-                response = response.toBuilder().setEncryptionVersion(encryptionVersion().get()).build();
-
-            return encode64(response);
+            var platformConfig = currentPlatformConfig(ctx);
+            return encode64(platformConfig);
         } catch (InvalidProtocolBufferException e) {
-            logger.warning("Failed to parse write platform config transaction: " + e.getMessage());
-            return encode64(invalidTransaction("Error parsing read platform config transaction", e.toString()));
+            logger.warning("Failed to parse PlatformConfig: " + e.getMessage());
+            return encode64(invalidTransaction("Failed to parse PlatformConfig: " + e.getMessage()));
         }
     }
 
-    public static PlatformConfig platformConfig() {
-        return platformConfig;
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public String GetPlatformConfig(Context ctx, String id) {
+        try {
+            var platformConfig = decode64(ctx.getStub().getStringState(TXType.PLATFORM_CONFIG.compositeKey(id).toString()), PlatformConfig::parseFrom);
+            return encode64(platformConfig);
+        } catch (InvalidProtocolBufferException e) {
+            logger.warning("Failed to parse PlatformConfig: " + e.getMessage());
+            return encode64(invalidTransaction("Failed to parse PlatformConfig: " + e.getMessage()));
+        }
     }
+
+    private void storeNetworkConfig(Context ctx, NetworkConfig networkConfig) {
+        ctx.getStub().putStringState(CURRENT_NETWORK_CONFIG_KEY, encode64(networkConfig));
+        ctx.getStub().putStringState(TXType.NETWORK_CONFIG.compositeKey(networkConfig.getId()).toString(), encode64(networkConfig));
+    }
+
+    private void storePlatformConfig(Context ctx, PlatformConfig platformConfig) {
+        ctx.getStub().putStringState(CURRENT_PLATFORM_CONFIG_KEY, encode64(platformConfig));
+        ctx.getStub().putStringState(TXType.PLATFORM_CONFIG.compositeKey(platformConfig.getId()).toString(), encode64(platformConfig));
+    }
+
 }

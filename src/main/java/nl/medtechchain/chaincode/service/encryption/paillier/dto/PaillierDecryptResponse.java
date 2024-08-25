@@ -1,4 +1,4 @@
-package nl.medtechchain.chaincode.service.ttp.dto;
+package nl.medtechchain.chaincode.service.encryption.paillier.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

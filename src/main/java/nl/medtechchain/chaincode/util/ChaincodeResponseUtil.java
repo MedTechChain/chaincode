@@ -38,18 +38,18 @@ public class ChaincodeResponseUtil {
     }
 
     public static ChaincodeResponse invalidTransaction(String message, String details) {
-        return errorResponse(ErrorCode.ERROR_CODE_INVALID_TRANSACTION, message, details);
+        return errorResponse(ErrorCode.INVALID_TRANSACTION, message, details);
     }
 
     public static ChaincodeResponse invalidTransaction(String message) {
-        return errorResponse(ErrorCode.ERROR_CODE_INVALID_TRANSACTION, message, "");
+        return errorResponse(ErrorCode.INVALID_TRANSACTION, message, "");
     }
 
     public static ChaincodeResponse internalError(String message, String details) {
-        return errorResponse(ErrorCode.ERROR_CODE_INTERNAL_ERROR, message, details);
+        return errorResponse(ErrorCode.INTERNAL_ERROR, message, details);
     }
 
     public static ChaincodeResponse internalError(String message) {
-        return errorResponse(ErrorCode.ERROR_CODE_INTERNAL_ERROR, message, "");
+        return errorResponse(ErrorCode.INTERNAL_ERROR, message, "");
     }
 }

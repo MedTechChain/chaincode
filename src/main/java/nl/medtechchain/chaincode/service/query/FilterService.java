@@ -1,174 +1,213 @@
 package nl.medtechchain.chaincode.service.query;
 
 import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.JsonFormat;
-import lombok.SneakyThrows;
-import nl.medtechchain.chaincode.service.query.util.FieldUtil;
-import nl.medtechchain.chaincode.util.ConfigUtil;
+import nl.medtechchain.chaincode.service.encryption.PlatformEncryptionInterface;
+import nl.medtechchain.proto.devicedata.DeviceCategory;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
+import nl.medtechchain.proto.devicedata.MedicalSpeciality;
 import nl.medtechchain.proto.query.Filter;
 
-import java.math.BigInteger;
 import java.util.Optional;
-import java.util.function.Predicate;
 import java.util.logging.Logger;
 
-import static nl.medtechchain.chaincode.util.ConfigUtil.encryptionEnabled;
-import static nl.medtechchain.chaincode.util.EncodingUtil.bigIntegerToString;
 
 public class FilterService {
 
     private static final Logger logger = Logger.getLogger(FilterService.class.getName());
 
-    private final DecryptionService decryptionService = new DecryptionService();
-    private final FieldUtil fieldUtil = new FieldUtil();
+    private final PlatformEncryptionInterface encryptionInterface;
 
-    public boolean checkEncryptionConfig(DeviceDataAsset asset) {
-        var currentEncryptionVersion = ConfigUtil.encryptionVersion();
-        boolean encryptionEnabled = currentEncryptionVersion.isPresent();
-        return !(!asset.hasEncryptionVersion() && encryptionEnabled ||
-                asset.hasEncryptionVersion() && !encryptionEnabled ||
-                asset.hasEncryptionVersion() && !asset.getEncryptionVersion().equals(currentEncryptionVersion.get()));
+    public FilterService() {
+        this.encryptionInterface = null;
     }
 
+    public FilterService(PlatformEncryptionInterface encryptionInterface) {
+        this.encryptionInterface = encryptionInterface;
+    }
 
     public boolean checkFilter(DeviceDataAsset asset, Filter filter) {
         try {
-            var fieldName = filter.getField();
+            var descriptor = Optional.ofNullable(DeviceDataAsset.DeviceData.getDescriptor().findFieldByName(filter.getField()));
+            if (descriptor.isEmpty())
+                throw new IllegalStateException("Field " + filter.getField() + " is not present in asset " + asset);
 
-            if (fieldUtil.isPlainField(fieldName))
-                return checkPlainField(asset, filter);
-            else if (fieldUtil.isSensitiveField(fieldName))
-                if (encryptionEnabled())
-                    return checkSensitiveEncryptedField(asset, filter);
-                else
-                    return checkSensitiveStringField(asset, filter);
-            else
-                throw new IllegalStateException("Field " + fieldName + " is not present in asset " + asset);
+            var value = asset.getDeviceData().getField(descriptor.get());
 
+            switch (DeviceDataFieldType.fromFieldName(filter.getField())) {
+                case STRING:
+                    assert filter.getComparatorCase() == Filter.ComparatorCase.STRING_FILTER;
+                    return check(filter.getField(), (DeviceDataAsset.StringField) value, filter.getStringFilter());
+                case INTEGER:
+                    assert filter.getComparatorCase() == Filter.ComparatorCase.INTEGER_FILTER;
+                    return check(filter.getField(), (DeviceDataAsset.IntegerField) value, filter.getIntegerFilter());
+                case TIMESTAMP:
+                    assert filter.getComparatorCase() == Filter.ComparatorCase.TIMESTAMP_FILTER;
+                    return check(filter.getField(), (DeviceDataAsset.TimestampField) value, filter.getTimestampFilter());
+                case BOOL:
+                    assert filter.getComparatorCase() == Filter.ComparatorCase.BOOL_FILTER;
+                    return check(filter.getField(), (DeviceDataAsset.BoolField) value, filter.getBoolFilter());
+                case DEVICE_CATEGORY:
+                    assert filter.getComparatorCase() == Filter.ComparatorCase.ENUM_FILTER;
+                    return check(filter.getField(), (DeviceDataAsset.DeviceCategoryField) value, filter.getEnumFilter());
+                case MEDICAL_SPECIALITY:
+                    assert filter.getComparatorCase() == Filter.ComparatorCase.ENUM_FILTER;
+                    return check(filter.getField(), (DeviceDataAsset.MedicalSpecialityField) value, filter.getEnumFilter());
+            }
 
+            return false;
         } catch (Throwable t) {
-            logger.severe("Error checking filter: " + filter + ". " + t);
+            logger.warning("Error checking filter: " + filter + ". " + t);
             return false;
         }
     }
 
-    private boolean checkPlainField(DeviceDataAsset asset, Filter filter) {
-        Object fieldValue = fieldUtil.extractPlainFieldValue(asset, filter.getField());
-        return applyFilter(fieldValue, filter);
-    }
+    private boolean check(String name, DeviceDataAsset.StringField field, Filter.StringFilter filter) {
+        String value;
+        switch (field.getFieldCase()) {
+            case PLAIN:
+                value = field.getPlain();
+                break;
+            case ENCRYPTED:
+                if (encryptionInterface == null)
+                    throw new IllegalStateException("Field " + name + " is encrypted, but the platform is not properly configured to use encryption.");
 
-    private boolean checkSensitiveStringField(DeviceDataAsset asset, Filter filter) {
-        String value = fieldUtil.extractSensitiveFieldValue(asset, filter.getField());
-        return applyFilter(parseSensitiveStringValue(value, filter), filter);
-    }
-
-
-    private boolean checkSensitiveEncryptedField(DeviceDataAsset asset, Filter filter) {
-        String encryptedValue = fieldUtil.extractSensitiveFieldValue(asset, filter.getField());
-        Optional<String> plaintext = decryptionService.decrypt(encryptedValue);
-        return plaintext.map(value -> applyFilter(parseSensitiveEncryptedValue(value, filter), filter)).orElse(false);
-    }
-
-    @SneakyThrows
-    private Object parseSensitiveStringValue(String value, Filter filter) {
-        switch (filter.getComparatorCase()) {
-            case INT_FILTER:
-                return Long.parseLong(value);
-            case STRING_FILTER:
-                return value;
-            case BOOL_FILTER:
-                return Boolean.parseBoolean(value);
-            case TIMESTAMP_FILTER:
-                var builder = Timestamp.newBuilder();
-                JsonFormat.parser().merge(value, builder);
-                return check(builder.build(), filter.getTimestampFilter());
+                value = encryptionInterface.decryptString(field.getEncrypted());
+                break;
             default:
-                throw new IllegalArgumentException("Unsupported filter type");
+                return false;
         }
+
+        switch (filter.getOperator()) {
+            case CONTAINS:
+                return value.contains(filter.getValue());
+            case ENDS_WITH:
+                return value.endsWith(filter.getValue());
+            case EQUALS:
+                return value.equals(filter.getValue());
+            case STARTS_WITH:
+                return value.startsWith(filter.getValue());
+        }
+
+        return false;
     }
 
-    private Object parseSensitiveEncryptedValue(String value, Filter filter) {
-        switch (filter.getComparatorCase()) {
-            case INT_FILTER:
-                return Long.parseLong(value);
-            case STRING_FILTER:
-                return bigIntegerToString(new BigInteger(value));
-            case BOOL_FILTER:
-                return Long.parseLong(value) != 0;
-            case TIMESTAMP_FILTER:
-                return Timestamp.newBuilder().setSeconds(Long.parseLong(value)).build();
+    private boolean check(String name, DeviceDataAsset.IntegerField field, Filter.IntegerFilter filter) {
+        long value;
+        switch (field.getFieldCase()) {
+            case PLAIN:
+                value = field.getPlain();
+                break;
+            case ENCRYPTED:
+                if (encryptionInterface == null)
+                    throw new IllegalStateException("Field " + name + " is encrypted, but the platform is not properly configured to use encryption.");
+
+                value = encryptionInterface.decryptLong(field.getEncrypted());
+                break;
             default:
-                throw new IllegalArgumentException("Unsupported filter type");
+                return false;
         }
+
+        switch (filter.getOperator()) {
+            case GREATER_THAN_OR_EQUAL:
+                return value >= filter.getValue();
+            case EQUALS:
+                return value == filter.getValue();
+            case LESS_THAN:
+                return value < filter.getValue();
+            case GREATER_THAN:
+                return value > filter.getValue();
+            case LESS_THAN_OR_EQUAL:
+                return value <= filter.getValue();
+        }
+
+        return false;
     }
 
-    private boolean applyFilter(Object fieldValue, Filter filter) {
-        Predicate<Object> predicate = getFilterPredicate(filter);
-        return predicate.test(fieldValue);
-    }
+    private boolean check(String name, DeviceDataAsset.TimestampField field, Filter.TimestampFilter filter) {
+        Timestamp value;
+        switch (field.getFieldCase()) {
+            case PLAIN:
+                value = field.getPlain();
+                break;
+            case ENCRYPTED:
+                if (encryptionInterface == null)
+                    throw new IllegalStateException("Field " + name + " is encrypted, but the platform is not properly configured to use encryption.");
 
-    private Predicate<Object> getFilterPredicate(Filter filter) {
-        switch (filter.getComparatorCase()) {
-            case INT_FILTER:
-                return value -> check((long) value, filter.getIntFilter());
-            case STRING_FILTER:
-                return value -> check((String) value, filter.getStringFilter());
-            case BOOL_FILTER:
-                return value -> check((boolean) value, filter.getBoolFilter());
-            case TIMESTAMP_FILTER:
-                return value -> check((Timestamp) value, filter.getTimestampFilter());
+                value = Timestamp.newBuilder().setSeconds(encryptionInterface.decryptLong(field.getEncrypted())).build();
+                break;
             default:
-                throw new IllegalArgumentException("Unsupported filter type");
+                return false;
         }
-    }
 
-    private boolean check(long value, Filter.IntFilter intFilter) {
-        switch (intFilter.getOperator()) {
-            case INT_OPERATOR_GREATER_THAN_OR_EQUAL:
-                return value >= intFilter.getValue();
-            case INT_OPERATOR_EQUALS:
-                return value == intFilter.getValue();
-            case INT_OPERATOR_LESS_THAN:
-                return value < intFilter.getValue();
-            case INT_OPERATOR_GREATER_THAN:
-                return value > intFilter.getValue();
-            case INT_OPERATOR_LESS_THAN_OR_EQUAL:
-                return value <= intFilter.getValue();
+        switch (filter.getOperator()) {
+            case AFTER:
+                return value.getSeconds() > filter.getValue().getSeconds();
+            case BEFORE:
+                return value.getSeconds() < filter.getValue().getSeconds();
+            case EQUALS:
+                return value.getSeconds() == filter.getValue().getSeconds();
         }
+
         return false;
     }
 
-    private boolean check(String value, Filter.StringFilter stringFilter) {
-        switch (stringFilter.getOperator()) {
-            case STRING_OPERATOR_CONTAINS:
-                return value.contains(stringFilter.getValue());
-            case STRING_OPERATOR_ENDS_WITH:
-                return value.endsWith(stringFilter.getValue());
-            case STRING_OPERATOR_EQUALS:
-                return value.equals(stringFilter.getValue());
-            case STRING_OPERATOR_STARTS_WITH:
-                return value.startsWith(stringFilter.getValue());
+    private boolean check(String name, DeviceDataAsset.BoolField field, Filter.BoolFilter filter) {
+        boolean value;
+        switch (field.getFieldCase()) {
+            case PLAIN:
+                value = field.getPlain();
+                break;
+            case ENCRYPTED:
+                if (encryptionInterface == null)
+                    throw new IllegalStateException("Field " + name + " is encrypted, but the platform is not properly configured to use encryption.");
+
+                value = encryptionInterface.decryptBool(field.getEncrypted());
+                break;
+            default:
+                return false;
         }
+
+        if (filter.getOperator() == Filter.BoolFilter.BoolOperator.EQUALS) {
+            return value == filter.getValue();
+        }
+
         return false;
     }
 
-    private boolean check(boolean value, Filter.BoolFilter boolFilter) {
-        if (boolFilter.getOperator() == Filter.BoolFilter.BoolOperator.BOOL_OPERATOR_EQUALS) {
-            return value == boolFilter.getValue();
+    private boolean check(String name, DeviceDataAsset.MedicalSpecialityField field, Filter.EnumFilter filter) {
+        MedicalSpeciality value;
+        switch (field.getFieldCase()) {
+            case PLAIN:
+                value = field.getPlain();
+                break;
+            case ENCRYPTED:
+                if (encryptionInterface == null)
+                    throw new IllegalStateException("Field " + name + " is encrypted, but the platform is not properly configured to use encryption.");
+                value = MedicalSpeciality.forNumber((int) encryptionInterface.decryptLong(field.getEncrypted()));
+                break;
+            default:
+                return false;
         }
-        return false;
+
+        return value == MedicalSpeciality.valueOf(filter.getValue());
     }
 
-    private boolean check(Timestamp value, Filter.TimestampFilter timestampFilter) {
-        switch (timestampFilter.getOperator()) {
-            case TIMESTAMP_OPERATOR_AFTER:
-                return value.getNanos() > timestampFilter.getValue().getNanos();
-            case TIMESTAMP_OPERATOR_BEFORE:
-                return value.getNanos() < timestampFilter.getValue().getNanos();
-            case TIMESTAMP_OPERATOR_EQUALS:
-                return value.getNanos() == timestampFilter.getValue().getNanos();
+    private boolean check(String name, DeviceDataAsset.DeviceCategoryField field, Filter.EnumFilter filter) {
+        DeviceCategory value;
+        switch (field.getFieldCase()) {
+            case PLAIN:
+                value = field.getPlain();
+                break;
+            case ENCRYPTED:
+                if (encryptionInterface == null)
+                    throw new IllegalStateException("Field " + name + " is encrypted, but the platform is not properly configured to use encryption.");
+                value = DeviceCategory.forNumber((int) encryptionInterface.decryptLong(field.getEncrypted()));
+                break;
+            default:
+                return false;
         }
-        return false;
+
+        return value == DeviceCategory.valueOf(filter.getValue());
     }
+
 }

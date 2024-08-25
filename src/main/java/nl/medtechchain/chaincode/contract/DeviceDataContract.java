@@ -1,8 +1,10 @@
 package nl.medtechchain.chaincode.contract;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import nl.medtechchain.chaincode.service.encryption.PlatformEncryptionInterface;
 import nl.medtechchain.chaincode.service.query.FilterService;
 import nl.medtechchain.chaincode.service.query.QueryService;
+import nl.medtechchain.proto.config.PlatformConfig;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
 import nl.medtechchain.proto.query.Query;
 import nl.medtechchain.proto.query.QueryAsset;
@@ -14,43 +16,37 @@ import org.hyperledger.fabric.contract.annotation.Contract;
 import org.hyperledger.fabric.contract.annotation.Info;
 import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
-import org.hyperledger.fabric.shim.ledger.CompositeKey;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 
 import java.util.*;
 
+import static nl.medtechchain.chaincode.util.Base64EncodingOps.decode64;
+import static nl.medtechchain.chaincode.util.Base64EncodingOps.encode64;
 import static nl.medtechchain.chaincode.util.ChaincodeResponseUtil.*;
-import static nl.medtechchain.chaincode.util.EncodingUtil.decode64;
-import static nl.medtechchain.chaincode.util.EncodingUtil.encode64;
 import static nl.medtechchain.chaincode.util.MeasureExecTimeUtil.monitorTime;
 
 @Contract(name = "devicedata", info = @Info(title = "Device Data Contract", license = @License(name = "Apache 2.0 License", url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
 public final class DeviceDataContract implements ContractInterface {
 
     private static final Logger logger = Logger.getLogger(DeviceDataContract.class);
-    private static final String INDEX = "TX_ID_";
-
-    private final FilterService filterService = new FilterService();
-    private final QueryService queryService = new QueryService();
-
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public String StoreDeviceData(Context ctx, String id, String transaction) {
         try {
             decode64(transaction, DeviceDataAsset::parseFrom);
-            var key = compositeKey(ctx, TXType.DEVICE_DATA_ASSET, id);
+            var key = TXType.DEVICE_DATA_ASSET.compositeKey(id);
             ctx.getStub().putStringState(key.toString(), transaction);
             logger.debug("Stored device data asset: " + key);
             return encode64(successResponse("Device data asset stored successfully"));
         } catch (InvalidProtocolBufferException e) {
-            logger.warning("Failed to parse device data asset: " + e.getMessage());
-            return encode64(invalidTransaction("Error parsing device data transaction", e.toString()));
+            logger.warning("Failed to parse DeviceDataAsset: " + e.getMessage());
+            return encode64(invalidTransaction("Failed to parse DeviceDataAsset: " + e.getMessage()));
         }
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public void Test(Context ctx) {
-        var iterator = ctx.getStub().getStateByPartialCompositeKey(ctx.getStub().createCompositeKey(INDEX, TXType.DEVICE_DATA_ASSET.name()));
+        var iterator = ctx.getStub().getStateByPartialCompositeKey(TXType.DEVICE_DATA_ASSET.partialKey());
         DeviceDataAsset asset = DeviceDataAsset.newBuilder().build();
         for (KeyValue kv : iterator) {
             try {
@@ -64,31 +60,32 @@ public final class DeviceDataContract implements ContractInterface {
     }
 
 
-
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String Query(Context ctx, String transaction) {
         try {
-            var tx = decode64(transaction, Query::parseFrom);
+            var platformConfig = PlatformConfigContract.currentPlatformConfig(ctx);
+            var query = decode64(transaction, Query::parseFrom);
+            var queryService = new QueryService(platformConfig);
 
-            var error = queryService.validateQuery(tx);
+            var error = queryService.validateQuery(query);
             if (error.isPresent())
                 return encode64(errorResponse(error.get()));
 
-            logger.info("Performing: " + tx);
+            logger.info("Performing: " + query);
 
             var result = monitorTime(() -> {
-                var data = getFilteredData(ctx, tx);
+                var data = getFilteredData(ctx, query, platformConfig);
                 var r = QueryResult.newBuilder().setError(invalidTransaction("Unknown query type").getError()).build();
                 try {
-                    switch (tx.getQueryType()) {
-                        case QUERY_TYPE_COUNT:
-                            r = queryService.count(tx, data);
+                    switch (query.getQueryType()) {
+                        case COUNT:
+                            r = queryService.count(query, data);
                             break;
-                        case QUERY_TYPE_GROUPED_COUNT:
-                            r = queryService.groupedCount(tx, data);
+                        case GROUPED_COUNT:
+                            r = queryService.groupedCount(query, data);
                             break;
-                        case QUERY_TYPE_AVERAGE:
-                            r = queryService.average(tx, data);
+                        case AVERAGE:
+                            r = queryService.average(query, data);
                             break;
                     }
                 } catch (Throwable t) {
@@ -99,8 +96,8 @@ public final class DeviceDataContract implements ContractInterface {
                 return r;
             });
 
-            var asset = QueryAsset.newBuilder().setQuery(tx).setResult(result).build();
-            var key = compositeKey(ctx, TXType.QUERY, UUID.nameUUIDFromBytes(asset.toByteArray()).toString());
+            var asset = QueryAsset.newBuilder().setQuery(query).setResult(result).build();
+            var key = TXType.QUERY.compositeKey(UUID.nameUUIDFromBytes(asset.toByteArray()).toString());
             ctx.getStub().putStringState(key.toString(), encode64(asset));
 
             return encode64(result);
@@ -110,16 +107,18 @@ public final class DeviceDataContract implements ContractInterface {
         }
     }
 
-    private List<DeviceDataAsset> getFilteredData(Context ctx, Query tx) {
+    private List<DeviceDataAsset> getFilteredData(Context ctx, Query tx, PlatformConfig platformConfig) {
         var filteredDeviceData = new ArrayList<DeviceDataAsset>();
 
-        var iterator = ctx.getStub().getStateByPartialCompositeKey(ctx.getStub().createCompositeKey(DeviceDataContract.INDEX, TXType.DEVICE_DATA_ASSET.name()));
+        var iterator = ctx.getStub().getStateByPartialCompositeKey(TXType.DEVICE_DATA_ASSET.partialKey());
+
+        var filterService = PlatformEncryptionInterface.Factory.getInstance(platformConfig).map(FilterService::new).orElse(new FilterService());
 
         for (KeyValue kv : iterator) {
             try {
                 DeviceDataAsset asset = decode64(kv.getStringValue(), DeviceDataAsset::parseFrom);
 
-                boolean valid = filterService.checkEncryptionConfig(asset) &&
+                boolean valid = asset.getConfigId().equals(platformConfig.getId()) &&
                         tx.getFiltersList().stream().allMatch(filter -> filterService.checkFilter(asset, filter));
 
                 if (valid)
@@ -131,10 +130,5 @@ public final class DeviceDataContract implements ContractInterface {
         }
 
         return filteredDeviceData;
-    }
-
-
-    private CompositeKey compositeKey(Context ctx, TXType txType, String id) {
-        return ctx.getStub().createCompositeKey(INDEX, txType.name(), id);
     }
 }
