@@ -27,7 +27,6 @@ public enum DeviceDataFieldType {
             case "devicedata.DeviceDataAsset.IntegerField":
                 return INTEGER;
             case "devicedata.DeviceDataAsset.BoolField":
-
                 return BOOL;
             case "devicedata.DeviceDataAsset.MedicalSpecialityField":
                 return MEDICAL_SPECIALITY;

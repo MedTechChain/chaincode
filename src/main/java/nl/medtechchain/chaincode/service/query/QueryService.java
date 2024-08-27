@@ -16,7 +16,12 @@ import nl.medtechchain.proto.query.Filter;
 import nl.medtechchain.proto.query.Query;
 import nl.medtechchain.proto.query.QueryResult;
 
-import java.util.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import static nl.medtechchain.chaincode.config.ConfigOps.PlatformConfigOps.get;
@@ -37,7 +42,7 @@ public class QueryService {
         String differentialPrivacyProp = get(platformConfig, CONFIG_FEATURE_QUERY_DIFFERENTIAL_PRIVACY).orElse("NONE");
         MechanismType type;
         try {
-            type = MechanismType.valueOf(differentialPrivacyProp);
+            type = MechanismType.valueOf(differentialPrivacyProp.toUpperCase());
         } catch (IllegalArgumentException e) {
             logger.warning("Invalid differential privacy mechanism: " + differentialPrivacyProp + ", defaulting to none");
             type = MechanismType.NONE;
@@ -62,13 +67,13 @@ public class QueryService {
         if (!validFields.contains(query.getTargetField()))
             return Optional.of(invalidQueryError("Target field not among valid fields for query type " + query.getTargetField() + " not in " + validFields + " for " + query.getQueryType().name()));
 
-        if (deviceDataDescriptorByName(query.getTargetField()).isEmpty())
+        if (deviceDataDescriptorByName(query.getTargetField()).isEmpty() && !query.getTargetField().equals("udi"))
             return Optional.of(invalidQueryError("Unknown target field: " + query.getTargetField()));
 
 
-        var fieldType = DeviceDataFieldType.fromFieldName(query.getTargetField());
-
         for (Filter filter : query.getFiltersList()) {
+            var fieldType = DeviceDataFieldType.fromFieldName(filter.getField());
+
             if (filter.getField().equals(query.getTargetField()))
                 return Optional.of(invalidQueryError("Target field specified as filter: " + query.getTargetField()));
 
@@ -117,10 +122,14 @@ public class QueryService {
     }
 
     public QueryResult count(Query query, List<DeviceDataAsset> assets) {
-        var result = groupedCountRaw(query, assets).size();
+        int result;
+        if (query.getTargetField().equals("udi"))
+            result = assets.size();
+        else
+            result = groupedCountRaw(query, assets).size();
 
-        if (Objects.requireNonNull(mechanismType) == MechanismType.LAPLACE) {
-            result = (int) new LaplaceNoise().addNoise(result, 1, getEpsilon(), 0.);
+        if (mechanismType == MechanismType.LAPLACE) {
+            result = Math.abs((int) new LaplaceNoise().addNoise(result, 1, getEpsilon(), 0.));
         }
 
         return QueryResult.newBuilder().setCountResult(result).build();
@@ -132,7 +141,7 @@ public class QueryService {
         switch (mechanismType) {
             case LAPLACE:
                 var noise = new LaplaceNoise();
-                result.replaceAll((key, value) -> (int) noise.addNoise((int) value, 1, getEpsilon(), 0.));
+                result.replaceAll((key, value) -> Math.abs((int) noise.addNoise((int) value, 1, getEpsilon(), 0.)));
         }
 
         return QueryResult.newBuilder().setGroupedCountResult(QueryResult.GroupedCount.newBuilder().putAllMap(result).build()).build();
@@ -157,17 +166,15 @@ public class QueryService {
         var sum = result.get_1();
         var count = result.get_2();
 
+        // implementing differential privacy properly requires additional consideration
+        // since sensitivity depends on the queried data
         switch (mechanismType) {
             case LAPLACE:
                 var noise = new LaplaceNoise();
-                sum += noise.addNoise(sum, (long) ((double) sum) / count, getEpsilon(), 0);
+                sum = noise.addNoise(sum, 1, getEpsilon(), 0);
         }
 
-        return QueryResult.newBuilder().setAverageResult(((double) sum) / count).build();
-    }
-
-    private Optional<Long> diffMaxMin(List<Long> list) {
-        return list.stream().max(Comparator.naturalOrder()).flatMap(max -> list.stream().min(Comparator.naturalOrder()).map(min -> max - min));
+        return QueryResult.newBuilder().setAverageResult(new BigDecimal(sum).divide(new BigDecimal(count), RoundingMode.HALF_EVEN).doubleValue()).build();
     }
 
     private Map<String, Integer> groupedCountRaw(Query query, List<DeviceDataAsset> assets) {
@@ -175,11 +182,18 @@ public class QueryService {
         var fieldType = DeviceDataFieldType.fromFieldName(query.getTargetField());
         assert descriptor.isPresent();
 
-        return GroupedCount.Factory.getInstance(fieldType).groupedCount(encryptionInterface, descriptor.get(), assets);
+        var result = new HashMap<String, Integer>();
+        var map = GroupedCount.Factory.getInstance(fieldType).groupedCount(encryptionInterface, descriptor.get(), assets);
+        for (Map.Entry<String, Integer> s : map.entrySet()) {
+            if (s.getValue() != 0)
+                result.put(s.getKey(), s.getValue());
+        }
+
+        return result;
     }
 
     private double getEpsilon() {
-        return Double.parseDouble(getUnsafe(platformConfig, CONFIG_FEATURE_QUERY_DIFFERENTIAL_PRIVACY));
+        return Double.parseDouble(getUnsafe(platformConfig, CONFIG_FEATURE_QUERY_DIFFERENTIAL_PRIVACY_LAPLACE_EPSILON));
     }
 
     private ChaincodeError invalidQueryError(String details) {

@@ -4,6 +4,7 @@ import nl.medtechchain.proto.config.PlatformConfig;
 
 import java.math.BigInteger;
 import java.util.Optional;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static nl.medtechchain.chaincode.config.ConfigOps.PlatformConfigOps.get;
@@ -56,7 +57,7 @@ public interface PlatformEncryptionInterface {
                         break;
                 }
             } catch (Throwable t) {
-                logger.warning("Error while getting scheme: " + t.getMessage());
+                logger.log(Level.WARNING,"Error while getting scheme", t);
                 scheme = Optional.empty();
             }
 

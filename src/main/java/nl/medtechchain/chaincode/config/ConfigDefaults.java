@@ -64,17 +64,17 @@ public class ConfigDefaults {
             list.add(entry(CONFIG_FEATURE_QUERY_INTERFACE_AVERAGE_FIELDS, "production_date,warranty_expiry_date,usage_hours"));
             list.add(entry(CONFIG_FEATURE_QUERY_DIFFERENTIAL_PRIVACY, "laplace"));
             list.add(entry(CONFIG_FEATURE_QUERY_DIFFERENTIAL_PRIVACY_LAPLACE_EPSILON, "1"));
-            list.add(entry(CONFIG_FEATURE_QUERY_ENCRYPTION_SCHEME, "none"));
             list.add(entry(CONFIG_FEATURE_QUERY_ENCRYPTION_PAILLIER_BIT_LENGTH, EncryptionDefaults.BIT_LENGTH + ""));
             list.add(entry(CONFIG_FEATURE_QUERY_ENCRYPTION_PAILLIER_TTP_ADRRESS, EncryptionDefaults.TTP_ADDRESS));
-            list.add(entry(CONFIG_FEATURE_QUERY_ENCRYPTION_PAILLIER_PUBLIC_KEY, ""));
             list.add(entry(CONFIG_FEATURE_AUDITING_KEY_EXCHANGE_ENABLED, "false"));
 
             var api = PaillierTTPAPI.getInstance(EncryptionDefaults.TTP_ADDRESS);
             try {
                 var key = api.encryptionKey(EncryptionDefaults.BIT_LENGTH);
+                list.add(entry(CONFIG_FEATURE_QUERY_ENCRYPTION_SCHEME, "paillier"));
                 list.add(entry(PlatformConfig.Config.CONFIG_FEATURE_QUERY_ENCRYPTION_PAILLIER_PUBLIC_KEY, key.getEncryptionKey()));
             } catch (IOException | InterruptedException e) {
+                list.add(entry(CONFIG_FEATURE_QUERY_ENCRYPTION_SCHEME, "none"));
                 logger.warning("Could not get encryption key, defaulting to none");
             }
 

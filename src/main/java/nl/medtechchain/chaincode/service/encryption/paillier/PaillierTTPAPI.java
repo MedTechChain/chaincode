@@ -36,7 +36,7 @@ public interface PaillierTTPAPI {
             @Override
             public PaillierEncryptResponse encrypt(PaillierEncryptRequest encryptRequest) throws IOException, InterruptedException {
                 var httpRequest = HttpRequest.newBuilder()
-                        .header("Content-Type", "application/ json")
+                        .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(om.writeValueAsString(encryptRequest)))
                         .uri(URI.create("http://" + ttpAddress + "/api/paillier/encrypt"))
                         .build();
@@ -48,7 +48,7 @@ public interface PaillierTTPAPI {
             @Override
             public PaillierDecryptResponse decrypt(PaillierDecryptRequest decryptRequest) throws IOException, InterruptedException {
                 var httpRequest = HttpRequest.newBuilder()
-                        .header("Content-Type", "application/ json")
+                        .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(om.writeValueAsString(decryptRequest)))
                         .uri(URI.create("http://" + ttpAddress + "/api/paillier/decrypt"))
                         .build();

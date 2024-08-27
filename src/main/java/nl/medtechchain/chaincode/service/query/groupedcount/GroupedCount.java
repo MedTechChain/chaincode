@@ -16,7 +16,7 @@ public interface GroupedCount {
         public static GroupedCount getInstance(DeviceDataFieldType fieldType) {
             switch (fieldType) {
                 case STRING:
-                    new StringGroupedCount();
+                    return new StringGroupedCount();
                 case INTEGER:
                     return new IntegerGroupedCount();
                 case TIMESTAMP:

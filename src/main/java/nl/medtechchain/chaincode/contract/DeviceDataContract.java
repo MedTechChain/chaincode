@@ -18,7 +18,11 @@ import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.logging.Level;
 
 import static nl.medtechchain.chaincode.util.Base64EncodingOps.decode64;
 import static nl.medtechchain.chaincode.util.Base64EncodingOps.encode64;
@@ -45,25 +49,9 @@ public final class DeviceDataContract implements ContractInterface {
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public void Test(Context ctx) {
-        var iterator = ctx.getStub().getStateByPartialCompositeKey(TXType.DEVICE_DATA_ASSET.partialKey());
-        DeviceDataAsset asset = DeviceDataAsset.newBuilder().build();
-        for (KeyValue kv : iterator) {
-            try {
-                asset = DeviceDataAsset.parseFrom(Base64.getDecoder().decode(kv.getValue()));
-                logger.info(asset.toString());
-            } catch (InvalidProtocolBufferException e) {
-                logger.warning("Error parsing device data transaction from ledger: " + e.getMessage() + "\n" + kv.getKey() + "\n" + Arrays.toString(kv.getValue()));
-            }
-        }
-        logger.info(asset.toString());
-    }
-
-
-    @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String Query(Context ctx, String transaction) {
         try {
-            var platformConfig = PlatformConfigContract.currentPlatformConfig(ctx);
+            var platformConfig = ConfigContract.currentPlatformConfig(ctx);
             var query = decode64(transaction, Query::parseFrom);
             var queryService = new QueryService(platformConfig);
 
@@ -88,8 +76,8 @@ public final class DeviceDataContract implements ContractInterface {
                             r = queryService.average(query, data);
                             break;
                     }
-                } catch (Throwable t) {
-                    logger.warning(t.toString());
+                } catch (Exception t) {
+                    logger.log(Level.WARNING, "Query error", t);
                     return QueryResult.newBuilder().setError(internalError("Error running query", t.toString()).getError()).build();
                 }
 

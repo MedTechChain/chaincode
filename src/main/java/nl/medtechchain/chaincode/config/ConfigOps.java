@@ -48,7 +48,7 @@ public class ConfigOps {
 
     public static class PlatformConfigOps {
         public static Optional<String> get(PlatformConfig platformConfig, nl.medtechchain.proto.config.PlatformConfig.Config property) {
-            return platformConfig.getMapList().stream().filter(e -> e.getKey() == property).map(PlatformConfig.Entry::getValue).findAny();
+            return platformConfig.getMapList().stream().filter(e -> e.getKey().equals(property)).map(PlatformConfig.Entry::getValue).findFirst();
         }
 
         public static String getUnsafe(PlatformConfig platformConfig, nl.medtechchain.proto.config.PlatformConfig.Config property) {

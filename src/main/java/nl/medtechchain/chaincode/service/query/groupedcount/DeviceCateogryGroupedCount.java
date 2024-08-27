@@ -7,11 +7,11 @@ import nl.medtechchain.chaincode.service.solver.ILPSolver;
 import nl.medtechchain.proto.devicedata.DeviceCategory;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class DeviceCateogryGroupedCount implements GroupedCount {
 
@@ -60,7 +60,11 @@ public class DeviceCateogryGroupedCount implements GroupedCount {
 
         if (homomorphicSum != null) {
             var decryptedSum = encryptionInterface.decryptLong(homomorphicSum);
-            partialHomomorphicResult = new ILPSolver().solveSystem(Stream.of(DeviceCategory.values()).map(Enum::name).collect(Collectors.toList()), Stream.of(DeviceCategory.values()).map(DeviceCategory::getNumber).collect(Collectors.toList()), decryptedSum, homomorphicOperations).orElse(new HashMap<>());
+            var values = new ArrayList<>(List.of(DeviceCategory.values()));
+            values.remove(DeviceCategory.UNRECOGNIZED);
+            values.remove(DeviceCategory.DEVICE_CATEGORY_UNSPECIFIED);
+
+            partialHomomorphicResult = new ILPSolver().solveSystem(values.stream().map(Enum::name).collect(Collectors.toList()), values.stream().map(DeviceCategory::getNumber).collect(Collectors.toList()), decryptedSum, homomorphicOperations).orElse(new HashMap<>());
         }
 
         for (Map.Entry<String, Integer> entry : partialHomomorphicResult.entrySet())

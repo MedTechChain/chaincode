@@ -6,7 +6,6 @@ import nl.medtechchain.proto.config.NetworkConfig;
 import nl.medtechchain.proto.config.PlatformConfig;
 import nl.medtechchain.proto.config.UpdateNetworkConfig;
 import nl.medtechchain.proto.config.UpdatePlatformConfig;
-import nl.medtechchain.proto.devicedata.DeviceDataAsset;
 import org.hyperledger.fabric.Logger;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
@@ -15,8 +14,6 @@ import org.hyperledger.fabric.contract.annotation.Info;
 import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
 
-import java.util.stream.Collectors;
-
 import static nl.medtechchain.chaincode.config.ConfigDefaults.NetworkDefaults;
 import static nl.medtechchain.chaincode.config.ConfigDefaults.PlatformConfigDefaults;
 import static nl.medtechchain.chaincode.util.Base64EncodingOps.decode64;
@@ -24,10 +21,10 @@ import static nl.medtechchain.chaincode.util.Base64EncodingOps.encode64;
 import static nl.medtechchain.chaincode.util.ChaincodeResponseUtil.invalidTransaction;
 import static nl.medtechchain.chaincode.util.ChaincodeResponseUtil.successResponse;
 
-@Contract(name = "platformconfig", info = @Info(title = "Platform Config Contract", license = @License(name = "Apache 2.0 License", url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
-public final class PlatformConfigContract implements ContractInterface {
+@Contract(name = "config", info = @Info(title = "Platform Config Contract", license = @License(name = "Apache 2.0 License", url = "http://www.apache.org/licenses/LICENSE-2.0.html")))
+public final class ConfigContract implements ContractInterface {
 
-    private static final Logger logger = Logger.getLogger(PlatformConfigContract.class);
+    private static final Logger logger = Logger.getLogger(ConfigContract.class);
 
     private static final String CURRENT_NETWORK_CONFIG_KEY = "CURRENT_NETWORK_CONFIG";
     private static final String CURRENT_PLATFORM_CONFIG_KEY = "CURRENT_PLATFORM_CONFIG";
@@ -63,10 +60,6 @@ public final class PlatformConfigContract implements ContractInterface {
         }
     }
 
-    public static void main(String[] args) {
-        System.out.println(DeviceDataAsset.DeviceData.getDescriptor().getFields().stream().map(d -> d.getMessageType().getFullName()).collect(Collectors.toList()));
-    }
-
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public String UpdatePlatformConfig(Context ctx, String transaction) {
         try {
@@ -84,8 +77,7 @@ public final class PlatformConfigContract implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String GetNetworkConfig(Context ctx) {
         try {
-            var platformConfig = currentNetworkConfig(ctx);
-            return encode64(platformConfig);
+            return encode64(successResponse(encode64(currentNetworkConfig(ctx))));
         } catch (InvalidProtocolBufferException e) {
             logger.warning("Failed to parse NetworkConfig: " + e.getMessage());
             return encode64(invalidTransaction("Failed to parse NetworkConfig: " + e.getMessage()));
@@ -93,10 +85,10 @@ public final class PlatformConfigContract implements ContractInterface {
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public String GetNetworkConfig(Context ctx, String id) {
+    public String GetNetworkConfigId(Context ctx, String id) {
         try {
-            var platformConfig = decode64(ctx.getStub().getStringState(TXType.NETWORK_CONFIG.compositeKey(id).toString()), NetworkConfig::parseFrom);
-            return encode64(platformConfig);
+            var networkConfig = decode64(ctx.getStub().getStringState(TXType.NETWORK_CONFIG.compositeKey(id).toString()), NetworkConfig::parseFrom);
+            return encode64(successResponse(encode64(networkConfig)));
         } catch (InvalidProtocolBufferException e) {
             logger.warning("Failed to parse NetworkConfig: " + e.getMessage());
             return encode64(invalidTransaction("Failed to parse NetworkConfig: " + e.getMessage()));
@@ -107,7 +99,7 @@ public final class PlatformConfigContract implements ContractInterface {
     public String GetPlatformConfig(Context ctx) {
         try {
             var platformConfig = currentPlatformConfig(ctx);
-            return encode64(platformConfig);
+            return encode64(successResponse(encode64(platformConfig)));
         } catch (InvalidProtocolBufferException e) {
             logger.warning("Failed to parse PlatformConfig: " + e.getMessage());
             return encode64(invalidTransaction("Failed to parse PlatformConfig: " + e.getMessage()));
@@ -115,10 +107,10 @@ public final class PlatformConfigContract implements ContractInterface {
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public String GetPlatformConfig(Context ctx, String id) {
+    public String GetPlatformConfigId(Context ctx, String id) {
         try {
             var platformConfig = decode64(ctx.getStub().getStringState(TXType.PLATFORM_CONFIG.compositeKey(id).toString()), PlatformConfig::parseFrom);
-            return encode64(platformConfig);
+            return encode64(successResponse(encode64(platformConfig)));
         } catch (InvalidProtocolBufferException e) {
             logger.warning("Failed to parse PlatformConfig: " + e.getMessage());
             return encode64(invalidTransaction("Failed to parse PlatformConfig: " + e.getMessage()));

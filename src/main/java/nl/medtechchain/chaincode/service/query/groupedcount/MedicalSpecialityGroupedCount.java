@@ -7,6 +7,7 @@ import nl.medtechchain.chaincode.service.solver.ILPSolver;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
 import nl.medtechchain.proto.devicedata.MedicalSpeciality;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,7 +61,11 @@ public class MedicalSpecialityGroupedCount implements GroupedCount {
 
         if (homomorphicSum != null) {
             var decryptedSum = encryptionInterface.decryptLong(homomorphicSum);
-            partialHomomorphicResult = new ILPSolver().solveSystem(Stream.of(MedicalSpeciality.values()).map(Enum::name).collect(Collectors.toList()), Stream.of(MedicalSpeciality.values()).map(MedicalSpeciality::getNumber).collect(Collectors.toList()), decryptedSum, homomorphicOperations).orElse(new HashMap<>());
+            var values = new ArrayList<>(List.of(MedicalSpeciality.values()));
+            values.remove(MedicalSpeciality.UNRECOGNIZED);
+            values.remove(MedicalSpeciality.MEDICAL_SPECIALITY_UNSPECIFIED);
+
+            partialHomomorphicResult = new ILPSolver().solveSystem(values.stream().map(Enum::name).collect(Collectors.toList()), values.stream().map(MedicalSpeciality::getNumber).collect(Collectors.toList()), decryptedSum, homomorphicOperations).orElse(new HashMap<>());
         }
 
         for (Map.Entry<String, Integer> entry : partialHomomorphicResult.entrySet())
