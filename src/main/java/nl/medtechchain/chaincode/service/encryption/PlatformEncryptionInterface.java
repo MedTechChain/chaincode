@@ -11,6 +11,10 @@ import static nl.medtechchain.chaincode.config.ConfigOps.PlatformConfigOps.getUn
 import static nl.medtechchain.proto.config.PlatformConfig.Config.*;
 
 public interface PlatformEncryptionInterface {
+    default boolean isHomomorphic() {
+        return this instanceof HomomorphicEncryptionScheme;
+    }
+
     String encryptString(String plaintext);
 
     String encryptLong(long plaintext);

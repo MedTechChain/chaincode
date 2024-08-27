@@ -9,8 +9,6 @@ RUN gradle --no-daemon shadowJar -x checkstyleMain -x checkstyleTest
 
 FROM eclipse-temurin:11-jdk-jammy
 
-RUN addgroup --system javauser && useradd -g javauser javauser
-
 COPY --from=builder --chown=javauser:javauser /home/gradle/src/build/libs/medtechchain.jar /app/chaincode.jar
 COPY --from=builder --chown=javauser:javauser /home/gradle/src/docker-entrypoint.sh /app/docker-entrypoint.sh
 

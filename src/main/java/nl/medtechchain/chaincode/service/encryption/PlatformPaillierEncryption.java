@@ -1,5 +1,6 @@
 package nl.medtechchain.chaincode.service.encryption;
 
+import autovalue.shaded.kotlin.NotImplementedError;
 import lombok.SneakyThrows;
 import nl.medtechchain.chaincode.service.encryption.paillier.PaillierTTPAPI;
 import nl.medtechchain.chaincode.service.encryption.paillier.dto.PaillierDecryptRequest;
@@ -8,7 +9,7 @@ import nl.medtechchain.chaincode.service.encryption.paillier.dto.PaillierEncrypt
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
-public class PlatformPaillierEncryption implements PlatformEncryptionInterface {
+public class PlatformPaillierEncryption implements PlatformEncryptionInterface, HomomorphicEncryptionScheme {
 
     private final BigInteger encryptionKey;
     private final PaillierTTPAPI api;
@@ -48,6 +49,21 @@ public class PlatformPaillierEncryption implements PlatformEncryptionInterface {
     @Override
     public boolean decryptBool(String ciphertext) {
         return decrypt(new BigInteger(ciphertext)).equals(BigInteger.ONE);
+    }
+
+    @Override
+    public String add(String c1, String c2) {
+        return new BigInteger(c1).multiply(new BigInteger(c2)).toString();
+    }
+
+    @Override
+    public String mulCt(String ct, String c) {
+        return new BigInteger(c).pow(Integer.parseInt(ct)).toString();
+    }
+
+    @Override
+    public String mul(String c1, String c2) {
+        throw new NotImplementedError("SMP not implemented currently since it is not needed.");
     }
 
     @SneakyThrows
