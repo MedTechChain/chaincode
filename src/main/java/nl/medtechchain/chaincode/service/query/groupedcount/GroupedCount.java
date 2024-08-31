@@ -2,8 +2,8 @@ package nl.medtechchain.chaincode.service.query.groupedcount;
 
 import com.google.protobuf.Descriptors;
 import nl.medtechchain.chaincode.service.encryption.PlatformEncryptionInterface;
-import nl.medtechchain.chaincode.service.query.DeviceDataFieldType;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
+import nl.medtechchain.proto.devicedata.DeviceDataFieldType;
 
 import java.util.List;
 import java.util.Map;

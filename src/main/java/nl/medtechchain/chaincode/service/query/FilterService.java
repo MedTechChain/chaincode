@@ -33,7 +33,7 @@ public class FilterService {
 
             var value = asset.getDeviceData().getField(descriptor.get());
 
-            switch (DeviceDataFieldType.fromFieldName(filter.getField())) {
+            switch (DeviceDataFieldTypeMapper.fromFieldName(filter.getField())) {
                 case STRING:
                     assert filter.getComparatorCase() == Filter.ComparatorCase.STRING_FILTER;
                     return check(filter.getField(), (DeviceDataAsset.StringField) value, filter.getStringFilter());

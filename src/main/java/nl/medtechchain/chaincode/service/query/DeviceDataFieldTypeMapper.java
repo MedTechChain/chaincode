@@ -1,17 +1,13 @@
 package nl.medtechchain.chaincode.service.query;
 
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
+import nl.medtechchain.proto.devicedata.DeviceDataFieldType;
 
 import java.util.Optional;
 
-public enum DeviceDataFieldType {
-    UNRECOGNIZED,
-    STRING,
-    TIMESTAMP,
-    INTEGER,
-    BOOL,
-    DEVICE_CATEGORY,
-    MEDICAL_SPECIALITY;
+import static nl.medtechchain.proto.devicedata.DeviceDataFieldType.*;
+
+public class DeviceDataFieldTypeMapper {
 
     public static DeviceDataFieldType fromFieldName(String name) {
         // all fields are wrapped in a protobuf message
@@ -35,6 +31,6 @@ public enum DeviceDataFieldType {
 
         }
 
-        return DeviceDataFieldType.UNRECOGNIZED;
+        return DEVICE_DATA_FIELD_TYPE_UNSPECIFIED;
     }
 }

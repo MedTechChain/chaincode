@@ -11,6 +11,7 @@ import nl.medtechchain.proto.common.ChaincodeError;
 import nl.medtechchain.proto.config.PlatformConfig;
 import nl.medtechchain.proto.devicedata.DeviceCategory;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
+import nl.medtechchain.proto.devicedata.DeviceDataFieldType;
 import nl.medtechchain.proto.devicedata.MedicalSpeciality;
 import nl.medtechchain.proto.query.Filter;
 import nl.medtechchain.proto.query.Query;
@@ -72,7 +73,7 @@ public class QueryService {
 
 
         for (Filter filter : query.getFiltersList()) {
-            var fieldType = DeviceDataFieldType.fromFieldName(filter.getField());
+            var fieldType = DeviceDataFieldTypeMapper.fromFieldName(filter.getField());
 
             if (filter.getField().equals(query.getTargetField()))
                 return Optional.of(invalidQueryError("Target field specified as filter: " + query.getTargetField()));
@@ -88,7 +89,7 @@ public class QueryService {
                         try {
                             DeviceCategory.valueOf(filter.getEnumFilter().getValue());
                         } catch (Throwable t) {
-                            return invalidFilter.map(e -> e.toBuilder().setDetails(e.getDetails()  + " " + t.getMessage()).build());
+                            return invalidFilter.map(e -> e.toBuilder().setDetails(e.getDetails() + " " + t.getMessage()).build());
                         }
 
                     if (fieldType == DeviceDataFieldType.MEDICAL_SPECIALITY)
@@ -150,7 +151,7 @@ public class QueryService {
 
     public QueryResult average(Query query, List<DeviceDataAsset> assets) {
         var descriptor = deviceDataDescriptorByName(query.getTargetField());
-        var fieldType = DeviceDataFieldType.fromFieldName(query.getTargetField());
+        var fieldType = DeviceDataFieldTypeMapper.fromFieldName(query.getTargetField());
         assert descriptor.isPresent();
 
         Average avg = Average.Factory.getInstance(fieldType);
@@ -180,7 +181,7 @@ public class QueryService {
 
     private Map<String, Long> groupedCountRaw(Query query, List<DeviceDataAsset> assets) {
         var descriptor = deviceDataDescriptorByName(query.getTargetField());
-        var fieldType = DeviceDataFieldType.fromFieldName(query.getTargetField());
+        var fieldType = DeviceDataFieldTypeMapper.fromFieldName(query.getTargetField());
         assert descriptor.isPresent();
 
         var result = new HashMap<String, Long>();
