@@ -88,15 +88,16 @@ public class QueryService {
                         try {
                             DeviceCategory.valueOf(filter.getEnumFilter().getValue());
                         } catch (Throwable t) {
-                            return invalidFilter;
+                            return invalidFilter.map(e -> e.toBuilder().setDetails(e.getDetails()  + " " + t.getMessage()).build());
                         }
 
                     if (fieldType == DeviceDataFieldType.MEDICAL_SPECIALITY)
                         try {
                             MedicalSpeciality.valueOf(filter.getEnumFilter().getValue());
                         } catch (Throwable t) {
-                            return invalidFilter;
+                            return invalidFilter.map(e -> e.toBuilder().setDetails(e.getDetails() + " " + t.getMessage()).build());
                         }
+                    break;
                 case STRING_FILTER:
                     if (fieldType != DeviceDataFieldType.STRING)
                         return invalidFilter;
