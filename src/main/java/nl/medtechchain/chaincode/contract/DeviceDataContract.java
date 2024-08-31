@@ -149,6 +149,9 @@ public final class DeviceDataContract implements ContractInterface {
             try {
                 DeviceDataAsset asset = decode64(kv.getStringValue(), DeviceDataAsset::parseFrom);
 
+                if (asset.getTimestamp().getSeconds() < tx.getStartTime().getSeconds() || asset.getTimestamp().getSeconds() > tx.getEndTime().getSeconds())
+                    continue;
+
                 boolean valid = asset.getConfigId().equals(platformConfig.getId()) &&
                         tx.getFiltersList().stream().allMatch(filter -> filterService.checkFilter(asset, filter));
 
