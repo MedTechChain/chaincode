@@ -1,6 +1,7 @@
 package nl.medtechchain.chaincode.contract;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Timestamp;
 import nl.medtechchain.chaincode.service.encryption.PlatformEncryptionInterface;
 import nl.medtechchain.chaincode.service.query.FilterService;
 import nl.medtechchain.chaincode.service.query.QueryService;
@@ -16,6 +17,7 @@ import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -47,9 +49,10 @@ public final class DeviceDataContract implements ContractInterface {
         }
     }
 
-    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
     public String Query(Context ctx, String transaction) {
         try {
+            var startTime = Instant.now().getEpochSecond();
             var platformConfig = ConfigContract.currentPlatformConfig(ctx);
             var query = decode64(transaction, Query::parseFrom);
             var queryService = new QueryService(platformConfig);
@@ -83,7 +86,9 @@ public final class DeviceDataContract implements ContractInterface {
                 return r;
             });
 
-            var asset = QueryAsset.newBuilder().setQuery(query).setResult(result).build();
+            var endTime = Instant.now().getEpochSecond();
+
+            var asset = QueryAsset.newBuilder().setQuery(query).setResult(result).setRequestTime(Timestamp.newBuilder().setSeconds(startTime).build()).setResponseTime(Timestamp.newBuilder().setSeconds(endTime).build()).build();
             var key = TXType.QUERY.compositeKey(UUID.nameUUIDFromBytes(asset.toByteArray()).toString());
             ctx.getStub().putStringState(key.toString(), encode64(asset));
 
@@ -129,7 +134,7 @@ public final class DeviceDataContract implements ContractInterface {
             return encode64(QueryAssetPage.newBuilder().setPageSize(readPage.getPageSize()).setPageNumber(readPage.getPageNumber()).addAllAssets(result).build());
         } catch (InvalidProtocolBufferException e) {
             logger.log(Level.WARNING, "Failed to parse ReadQueryAssetPage", e);
-            return encode64(invalidTransaction("Failed to parse DeviceDataAsset: " + e.getMessage()));
+            return encode64(invalidTransaction("Failed to parse ReadQueryAssetPage: " + e.getMessage()));
         }
     }
 

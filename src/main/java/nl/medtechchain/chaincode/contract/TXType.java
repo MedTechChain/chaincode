@@ -9,10 +9,10 @@ public enum TXType {
     NETWORK_CONFIG;
 
     public CompositeKey partialKey() {
-        return new CompositeKey(this.name());
+        return new CompositeKey(this.name() + "_");
     }
 
     public CompositeKey compositeKey(String id) {
-        return new CompositeKey(this.name(), id);
+        return new CompositeKey(this.name() + "_", id);
     }
 }
