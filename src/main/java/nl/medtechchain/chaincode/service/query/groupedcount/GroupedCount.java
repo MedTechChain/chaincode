@@ -10,7 +10,7 @@ import java.util.Map;
 
 public interface GroupedCount {
 
-    Map<String, Integer> groupedCount(PlatformEncryptionInterface encryptionInterface, Descriptors.FieldDescriptor descriptor, List<DeviceDataAsset> assets);
+    Map<String, Long> groupedCount(PlatformEncryptionInterface encryptionInterface, Descriptors.FieldDescriptor descriptor, List<DeviceDataAsset> assets);
 
     class Factory {
         public static GroupedCount getInstance(DeviceDataFieldType fieldType) {

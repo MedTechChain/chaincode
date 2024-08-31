@@ -16,8 +16,8 @@ public class BoolGroupedCount implements GroupedCount {
     }
 
     @Override
-    public Map<String, Integer> groupedCount(PlatformEncryptionInterface encryptionInterface, Descriptors.FieldDescriptor descriptor, List<DeviceDataAsset> assets) {
-        var result = new HashMap<String, Integer>();
+    public Map<String, Long> groupedCount(PlatformEncryptionInterface encryptionInterface, Descriptors.FieldDescriptor descriptor, List<DeviceDataAsset> assets) {
+        var result = new HashMap<String, Long>();
 
         String key;
 
@@ -29,7 +29,7 @@ public class BoolGroupedCount implements GroupedCount {
             switch (fieldValue.getFieldCase()) {
                 case PLAIN:
                     key = fieldValue.getPlain() + "";
-                    result.put(key, result.getOrDefault(key, 0) + 1);
+                    result.put(key, result.getOrDefault(key, 0L) + 1);
                     break;
                 case ENCRYPTED:
                     if (encryptionInterface == null)
@@ -45,7 +45,7 @@ public class BoolGroupedCount implements GroupedCount {
 
                     } else {
                         key = encryptionInterface.decryptBool(fieldValue.getEncrypted()) + "";
-                        result.put(key, result.getOrDefault(key, 0) + 1);
+                        result.put(key, result.getOrDefault(key, 0L) + 1);
                     }
 
                     break;
@@ -61,7 +61,7 @@ public class BoolGroupedCount implements GroupedCount {
         }
 
         for (Map.Entry<String, Integer> entry : partialHomomorphicResult.entrySet())
-            result.put(entry.getKey(), result.getOrDefault(entry.getKey(), 0) + entry.getValue());
+            result.put(entry.getKey(), result.getOrDefault(entry.getKey(), 0L) + entry.getValue());
 
         return result;
     }

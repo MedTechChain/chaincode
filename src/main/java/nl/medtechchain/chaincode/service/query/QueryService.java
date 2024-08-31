@@ -141,7 +141,7 @@ public class QueryService {
         switch (mechanismType) {
             case LAPLACE:
                 var noise = new LaplaceNoise();
-                result.replaceAll((key, value) -> Math.abs((int) noise.addNoise((int) value, 1, getEpsilon(), 0.)));
+                result.replaceAll((key, value) -> Math.abs(noise.addNoise(value, 1, getEpsilon(), null)));
         }
 
         return QueryResult.newBuilder().setGroupedCountResult(QueryResult.GroupedCount.newBuilder().putAllMap(result).build()).build();
@@ -177,14 +177,14 @@ public class QueryService {
         return QueryResult.newBuilder().setAverageResult(new BigDecimal(sum).divide(new BigDecimal(count), RoundingMode.HALF_EVEN).doubleValue()).build();
     }
 
-    private Map<String, Integer> groupedCountRaw(Query query, List<DeviceDataAsset> assets) {
+    private Map<String, Long> groupedCountRaw(Query query, List<DeviceDataAsset> assets) {
         var descriptor = deviceDataDescriptorByName(query.getTargetField());
         var fieldType = DeviceDataFieldType.fromFieldName(query.getTargetField());
         assert descriptor.isPresent();
 
-        var result = new HashMap<String, Integer>();
+        var result = new HashMap<String, Long>();
         var map = GroupedCount.Factory.getInstance(fieldType).groupedCount(encryptionInterface, descriptor.get(), assets);
-        for (Map.Entry<String, Integer> s : map.entrySet()) {
+        for (Map.Entry<String, Long> s : map.entrySet()) {
             if (s.getValue() != 0)
                 result.put(s.getKey(), s.getValue());
         }

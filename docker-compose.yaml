@@ -8,7 +8,7 @@ services:
     environment:
       CORE_PEER_LOCALMSPID: MedTechChainPeerMSP
       CORE_PEER_ADDRESS: peer0.medtechchain.nl:7052
-      CORE_CHAINCODE_ID_NAME: medtechchain_1.0.0:4cc47869133db8d4b2d389ded04c40b4bc4dfcb444152a0d0eeec039d36d545b
+      CORE_CHAINCODE_ID_NAME: medtechchain_1.0.0:0ab14e98681c722ac90489fb6b549130dfcd291339cd7228e3052b0aa3e36cfb
       CHAINCODE_SERVER_ADDRESS: 0.0.0.0:9999
       CORE_PEER_TLS_ENABLED: true
       CORE_PEER_TLS_ROOTCERT_FILE: /crypto/cert.pem
@@ -32,7 +32,7 @@ services:
     environment:
       CORE_PEER_LOCALMSPID: HealPointPeerMSP
       CORE_PEER_ADDRESS: peer0.healpoint.nl:7052
-      CORE_CHAINCODE_ID_NAME: medtechchain_1.0.0:4cc47869133db8d4b2d389ded04c40b4bc4dfcb444152a0d0eeec039d36d545b
+      CORE_CHAINCODE_ID_NAME: medtechchain_1.0.0:0ab14e98681c722ac90489fb6b549130dfcd291339cd7228e3052b0aa3e36cfb
       CHAINCODE_SERVER_ADDRESS: 0.0.0.0:9999
       CORE_PEER_TLS_ENABLED: true
       CORE_PEER_TLS_ROOTCERT_FILE: /crypto/cert.pem
@@ -56,7 +56,7 @@ services:
     environment:
       CORE_PEER_LOCALMSPID: LifeCarePeerMSP
       CORE_PEER_ADDRESS: peer0.lifecare.nl:7052
-      CORE_CHAINCODE_ID_NAME: medtechchain_1.0.0:4cc47869133db8d4b2d389ded04c40b4bc4dfcb444152a0d0eeec039d36d545b
+      CORE_CHAINCODE_ID_NAME: medtechchain_1.0.0:0ab14e98681c722ac90489fb6b549130dfcd291339cd7228e3052b0aa3e36cfb
       CHAINCODE_SERVER_ADDRESS: 0.0.0.0:9999
       CORE_PEER_TLS_ENABLED: true
       CORE_PEER_TLS_ROOTCERT_FILE: /crypto/cert.pem

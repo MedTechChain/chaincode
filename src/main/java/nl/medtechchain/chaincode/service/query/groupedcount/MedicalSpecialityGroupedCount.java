@@ -20,8 +20,8 @@ public class MedicalSpecialityGroupedCount implements GroupedCount {
     }
 
     @Override
-    public Map<String, Integer> groupedCount(PlatformEncryptionInterface encryptionInterface, Descriptors.FieldDescriptor descriptor, List<DeviceDataAsset> assets) {
-        var result = new HashMap<String, Integer>();
+    public Map<String, Long> groupedCount(PlatformEncryptionInterface encryptionInterface, Descriptors.FieldDescriptor descriptor, List<DeviceDataAsset> assets) {
+        var result = new HashMap<String, Long>();
 
         String key;
 
@@ -33,7 +33,7 @@ public class MedicalSpecialityGroupedCount implements GroupedCount {
             switch (fieldValue.getFieldCase()) {
                 case PLAIN:
                     key = fieldValue.getPlain().name();
-                    result.put(key, result.getOrDefault(key, 0) + 1);
+                    result.put(key, result.getOrDefault(key, 0L) + 1);
                     break;
                 case ENCRYPTED:
                     if (encryptionInterface == null)
@@ -49,7 +49,7 @@ public class MedicalSpecialityGroupedCount implements GroupedCount {
 
                     } else {
                         key = MedicalSpeciality.forNumber((int) encryptionInterface.decryptLong(fieldValue.getEncrypted())).name();
-                        result.put(key, result.getOrDefault(key, 0) + 1);
+                        result.put(key, result.getOrDefault(key, 0L) + 1);
                     }
 
                     break;
@@ -69,7 +69,7 @@ public class MedicalSpecialityGroupedCount implements GroupedCount {
         }
 
         for (Map.Entry<String, Integer> entry : partialHomomorphicResult.entrySet())
-            result.put(entry.getKey(), result.getOrDefault(entry.getKey(), 0) + entry.getValue());
+            result.put(entry.getKey(), result.getOrDefault(entry.getKey(), 0L) + entry.getValue());
 
         return result;
     }

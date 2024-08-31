@@ -13,8 +13,8 @@ public class IntegerGroupedCount implements GroupedCount {
     IntegerGroupedCount() {}
 
     @Override
-    public Map<String, Integer> groupedCount(PlatformEncryptionInterface encryptionInterface, Descriptors.FieldDescriptor descriptor, List<DeviceDataAsset> assets) {
-        var result = new HashMap<String, Integer>();
+    public Map<String, Long> groupedCount(PlatformEncryptionInterface encryptionInterface, Descriptors.FieldDescriptor descriptor, List<DeviceDataAsset> assets) {
+        var result = new HashMap<String, Long>();
 
         for (DeviceDataAsset asset : assets) {
             var fieldValue = (DeviceDataAsset.IntegerField) asset.getDeviceData().getField(descriptor);
@@ -30,7 +30,7 @@ public class IntegerGroupedCount implements GroupedCount {
                     break;
             }
             if (key != null)
-                result.put(key, result.getOrDefault(key, 0) + 1);
+                result.put(key, result.getOrDefault(key, 0L) + 1);
         }
         return result;
     }
