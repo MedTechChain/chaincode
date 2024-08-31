@@ -6,9 +6,7 @@ import nl.medtechchain.chaincode.service.query.FilterService;
 import nl.medtechchain.chaincode.service.query.QueryService;
 import nl.medtechchain.proto.config.PlatformConfig;
 import nl.medtechchain.proto.devicedata.DeviceDataAsset;
-import nl.medtechchain.proto.query.Query;
-import nl.medtechchain.proto.query.QueryAsset;
-import nl.medtechchain.proto.query.QueryResult;
+import nl.medtechchain.proto.query.*;
 import org.hyperledger.fabric.Logger;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
@@ -41,9 +39,10 @@ public final class DeviceDataContract implements ContractInterface {
             var key = TXType.DEVICE_DATA_ASSET.compositeKey(id);
             ctx.getStub().putStringState(key.toString(), transaction);
             logger.debug("Stored device data asset: " + key);
-            return encode64(successResponse("Device data asset stored successfully"));
+            return encode64(successResponse(transaction));
         } catch (InvalidProtocolBufferException e) {
             logger.warning("Failed to parse DeviceDataAsset: " + e.getMessage());
+            logger.log(Level.WARNING, "Failed to parse DeviceDataAsset", e);
             return encode64(invalidTransaction("Failed to parse DeviceDataAsset: " + e.getMessage()));
         }
     }
@@ -88,10 +87,49 @@ public final class DeviceDataContract implements ContractInterface {
             var key = TXType.QUERY.compositeKey(UUID.nameUUIDFromBytes(asset.toByteArray()).toString());
             ctx.getStub().putStringState(key.toString(), encode64(asset));
 
-            return encode64(result);
+            if (result.hasError())
+                return encode64(errorResponse(result.getError()));
+
+            return encode64(successResponse(encode64(result)));
         } catch (InvalidProtocolBufferException e) {
-            logger.warning("Failed to parse query transaction: " + e.getMessage());
+            logger.log(Level.WARNING, "Failed to parse query transaction", e);
             return encode64(invalidTransaction("Error parsing query transaction", e.toString()));
+        }
+    }
+
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public String ReadQueries(Context ctx, String transaction) {
+
+        try {
+            var readPage = decode64(transaction, ReadQueryAssetPage::parseFrom);
+
+            var skip = (readPage.getPageNumber() - 1) * readPage.getPageSize();
+
+            var result = new ArrayList<QueryAsset>();
+            var iterator = ctx.getStub().getStateByPartialCompositeKey(TXType.QUERY.partialKey());
+
+
+            for (KeyValue kv : iterator) {
+                if (skip > 0) {
+                    skip--;
+                    continue;
+                }
+
+                try {
+                    result.add(decode64(kv.getStringValue(), QueryAsset::parseFrom));
+                } catch (InvalidProtocolBufferException e) {
+                    logger.warning("Error parsing device data transaction from ledger: " + e.getMessage() + "\n" + kv.getKey() + "\n" + Arrays.toString(kv.getValue()));
+                    break;
+                }
+
+                if (result.size() == readPage.getPageSize())
+                    break;
+            }
+
+            return encode64(QueryAssetPage.newBuilder().setPageSize(readPage.getPageSize()).setPageNumber(readPage.getPageNumber()).addAllAssets(result).build());
+        } catch (InvalidProtocolBufferException e) {
+            logger.log(Level.WARNING, "Failed to parse ReadQueryAssetPage", e);
+            return encode64(invalidTransaction("Failed to parse DeviceDataAsset: " + e.getMessage()));
         }
     }
 
@@ -113,6 +151,7 @@ public final class DeviceDataContract implements ContractInterface {
                     filteredDeviceData.add(asset);
 
             } catch (InvalidProtocolBufferException e) {
+                logger.log(Level.WARNING, "Error parsing device data transaction from ledger", e);
                 logger.warning("Error parsing device data transaction from ledger: " + e.getMessage() + "\n" + kv.getKey() + "\n" + Arrays.toString(kv.getValue()));
             }
         }
